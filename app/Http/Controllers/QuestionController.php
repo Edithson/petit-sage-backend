@@ -31,15 +31,44 @@ class QuestionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $questions = Question::with(['thematique:id,name', 'partie:id,numero'])->orderBy('numero')->get();
-            // $questions = Question::all();
+            // 1. On ne sélectionne QUE les colonnes nécessaires pour l'affichage du tableau
+            $query = Question::select([
+                'id', 
+                'intitule_text', 
+                'intitule_media_description', 
+                'thematique_id', 
+                'partie_id', 
+                'degre_difficulte'
+            ])
+            ->with([
+                'thematique:id,name', // On garde uniquement l'id et le nom
+                'partie:id,numero'    // Idem pour la partie
+            ])->orderBy('created_at', 'desc');
+
+            // 2. Recherche Backend optimisée
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('intitule_text', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('intitule_media_description', 'LIKE', '%' . $searchTerm . '%');
+                });
+            }
+
+            // 3. Filtre par thématique
+            if ($request->filled('theme_id') && $request->theme_id !== 'all') {
+                $query->where('thematique_id', $request->theme_id);
+            }
+
+            // 4. Pagination (15 par défaut)
+            $perPage = $request->get('per_page', 15);
+            $questions = $query->paginate($perPage);
+
             return PackageControlleur::successResponse(
                 $questions,
-                'Liste des questions récupérée avec succès',
-                ['count' => count($questions)]
+                'Liste des questions récupérée avec succès'
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération questions', ['error' => $th->getMessage()]);
