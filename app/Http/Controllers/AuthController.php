@@ -113,7 +113,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Erreurs de validation', 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors(), 'errors' => $validator->errors()], 422);
         }
 
         $storedToken = PasswordResetToken::where('email', $request->email)
