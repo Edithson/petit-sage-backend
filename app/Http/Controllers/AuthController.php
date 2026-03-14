@@ -141,13 +141,8 @@ class AuthController extends Controller
             'type_id' => 1, // Par défaut, un nouvel utilisateur est un apprenti (type_id = 1)
         ]);
 
-        // Générer le token d'authentification
-        $token = $user->createToken('auth_token')->plainTextToken;
-
         return response()->json([
             'message' => 'Inscription réussie.',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
