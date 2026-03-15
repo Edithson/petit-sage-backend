@@ -115,7 +115,7 @@ class ProfilController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show($id=null)
     {
         try {
             // Vérifier l'authentification
@@ -123,34 +123,46 @@ class ProfilController extends Controller
                 return PackageControlleur::errorResponse('Non authentifié.', 401);
             }
 
-            $profil = Profil::with(['user', 'niveau', 'badges'])
-                ->where('id', $id)
-                ->first();
+            if ($id != null) {
+                $profil = Profil::with(['user', 'niveau', 'badges'])
+                    ->where('id', $id)
+                    ->first();
+            }else{
+                $profil = User::with(['niveau', 'badges'])
+                    ->where('id', auth()->user()->id)
+                    ->first();
+            }
 
             if (!$profil) {
                 return PackageControlleur::errorResponse('Profil non trouvé.', 404);
             }
 
-            // Vérification des autorisations
-            if (auth()->user()->type_id < 2 && auth()->user()->id !== $profil->user_id) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+            if ($id !== null){
+                // Vérification des autorisations
+                if (auth()->user()->type_id < 2 && auth()->user()->id !== $profil->user_id) {
+                    return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                }
+
+                // Décryptage du mot de passe (si nécessaire - à éviter de retourner au front!)
+                try {
+                    $decrypted = PackageControlleur::decrypterChaine($profil->password);
+                    $profil->password = $decrypted ?: "";
+                } catch (\Throwable $th) {
+                    \Log::error('Erreur lors du décryptage du mot de passe : '.$th->getMessage(), ['error' => $th->getMessage()]);
+                    $profil->password = "";
+                }
+
+                // Récupération des évaluations
+                $evaluations = Evaluation::with(['partie', 'thematique'])
+                    ->where('user_id', $profil->user_id)
+                    ->where('profil_id', $profil->id)
+                    ->get();
+            } else {
+                $evaluations = Evaluation::with(['partie', 'thematique'])
+                    ->where('user_id', auth()->user()->id)
+                    ->where('profil_id', null)
+                    ->get();
             }
-
-            // Décryptage du mot de passe (si nécessaire - à éviter de retourner au front!)
-            try {
-                $decrypted = PackageControlleur::decrypterChaine($profil->password);
-                $profil->password = $decrypted ?: "";
-            } catch (\Throwable $th) {
-                \Log::error('Erreur lors du décryptage du mot de passe : '.$th->getMessage(), ['error' => $th->getMessage()]);
-                $profil->password = "";
-            }
-
-            // Récupération des évaluations
-            $evaluations = Evaluation::with(['partie', 'thematique'])
-                ->where('user_id', $profil->user_id)
-                ->where('profil_id', $profil->id)
-                ->get();
-
             $badges = [];
 
             $data = [

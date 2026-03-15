@@ -57,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // Routes pour les thématiques
+    Route::get('/thematiques/playable', [ThematiqueController::class, 'index_playable']);
     Route::get('/thematiques/get_main_theme', [ThematiqueController::class, 'get_main_theme']);
     Route::get('/thematiques/{id?}', [ThematiqueController::class, 'index']);
     Route::post('/thematiques', [ThematiqueController::class, 'store']);
@@ -94,7 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // les profils
     Route::get('/profil', [ProfilController::class, 'get_profils_user']);
     Route::post('/profil', [ProfilController::class, 'store']);
-    Route::get('/profil/show/{id}', [ProfilController::class, 'show']);
+    Route::get('/profil/show/{id?}', [ProfilController::class, 'show']);
     Route::get('/profil/edit/{id}', [ProfilController::class, 'edit']);
     Route::put('/profil/{id}', [ProfilController::class, 'update']);
     Route::delete('/profil/{id}', [ProfilController::class, 'destroy']);

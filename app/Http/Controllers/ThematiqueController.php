@@ -41,6 +41,28 @@ class ThematiqueController extends Controller
         }
     }
 
+    public function index_playable()
+    {
+        try {
+            // les thématiques avec au moins 3 questions leurs appartenant
+            $thematiques = Thematique::with('niveau:id,numero')->whereNull('parent_id')
+                ->whereHas('subThemes', function ($query) {
+                    // On ne garde que les sous-thématiques qui ont au moins 3 questions
+                    $query->has('questions', '>=', 3);
+                })
+                ->get();
+            
+            return PackageControlleur::successResponse(
+                $thematiques,
+                'Liste des thématiques récupérée avec succès',
+                ['count' => 1]
+            );
+        } catch (\Throwable $th) {
+            \Log::error('Erreur récupération thématiques : '.$th->getMessage(), ['error' => $th->getMessage()]);
+            return PackageControlleur::errorResponse('Erreur lors de la récupération des thématiques');
+        }
+    }
+    
     public function get_one($id)
     {
         try {

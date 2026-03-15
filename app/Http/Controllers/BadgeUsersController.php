@@ -55,6 +55,7 @@ class BadgeUsersController extends Controller
         } else {
             $badgeUsers = $query
             ->where('user_id', $user->id)
+            ->where('profil_id', null)
             ->get();
         }
 
