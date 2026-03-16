@@ -30,7 +30,6 @@ return new class extends Migration
             $table->foreignIdFor(User::class, 'created_by')->nullable()->onDelete('set null');
             $table->foreignIdFor(User::class, 'last_updated_by')->nullable()->onDelete('set null');
             $table->foreignIdFor(User::class, 'deleted_by')->nullable()->onDelete('set null');
-            // $table->unique(['thematique_id', 'partie_id', 'numero']);
             $table->timestamps();
             $table->softDeletes();
         });
