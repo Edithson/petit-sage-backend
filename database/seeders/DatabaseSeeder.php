@@ -29,10 +29,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Admin',
             'description' => 'Admin',
         ]);
-        Type::factory()->create([
-            'name' => 'Super Admin',
-            'description' => 'Super Admin',
-        ]);
 
         // Les niveaux
         Niveau::factory()->create([
@@ -55,7 +51,7 @@ class DatabaseSeeder extends Seeder
             'code' => 'ADMIN01USER',
             'name' => 'Admin User',
             'email' => 'admin@example.com',
-            'type_id' => 4,
+            'type_id' => 3,
         ]);
         User::factory()->create([
             'code' => 'TEST12USER',

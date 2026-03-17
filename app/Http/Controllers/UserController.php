@@ -92,7 +92,7 @@ class UserController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
-                'sexe' => 'nullable|string|in:Masculin,Féminin,Autre',
+                'sexe' => 'nullable|integer|in:1,2',
                 'age' => 'nullable|integer|min:0|max:150',
                 'telephone' => 'nullable|string|max:20',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
@@ -104,17 +104,17 @@ class UserController extends Controller
                 return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
             }
 
-            $num_niveau = $request->niveau_id;
-            if ($request->type_id > 2) {
+            $num_niveau = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
+            if ($request->type_id > 1) {
                 $num_niveau = Niveau::max('numero');
             }
 
             $user = new User();
             $user->name = $request->name;
             $user->email = $request->email;
-            $user->sexe = $request->sexe || null;
-            $user->age = $request->age || null;
-            $user->telephone = $request->telephone || null;
+            $user->sexe = ($request->sexe && $request->sexe !== '') ? $request->sexe : null;
+            $user->age = ($request->age && $request->age !== '') ? $request->age : null;
+            $user->telephone = ($request->telephone && $request->telephone !== '') ? $request->telephone : null;
             $user->type_id = $request->type_id;
             $user->niveau_id = $num_niveau;
             $user->code = $this->generateUniqueUserCode(); // Générer un code unique
@@ -166,7 +166,7 @@ class UserController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-                'sexe' => 'nullable|string|in:Masculin,Féminin,Autre',
+                'sexe' => 'nullable|integer|in:1,2',
                 'age' => 'nullable|integer|min:0|max:150',
                 'telephone' => 'nullable|string|max:20',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
@@ -198,10 +198,10 @@ class UserController extends Controller
             }
 
             $user->name = $request->name;
-            $user->sexe = $request->sexe;
-            $user->age = $request->age;
-            $user->telephone = $request->telephone;
-            $user->niveau_id = $request->niveau_id;
+            $user->sexe = ($request->sexe && $request->sexe !== '') ? $request->sexe : null;
+            $user->age = ($request->age && $request->age !== '') ? $request->age : null;
+            $user->telephone = ($request->telephone && $request->telephone !== '') ? $request->telephone : null;
+            $user->niveau_id = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
 
             // Seuls les admins peuvent changer le type_id d'un utilisateur
             if (auth()->user()->type_id >= 2) {
