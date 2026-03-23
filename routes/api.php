@@ -16,6 +16,7 @@ use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\NiveauController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ContactController;
 
 Route::get('/evaluations/user/{id?}', [EvaluationController::class, 'getEvalUser']); //reccuperer les données d'évaluation d'un compte utilisateur ou d'un sous compte
 
@@ -47,10 +48,19 @@ Route::put('/thematiques/{id}', [ThematiqueController::class, 'update']);
 // Routes pour les paramètres
 Route::get('/settings', [SettingController::class, 'get_setting']);
 
+// Routes pour les contacts
+Route::post('/contacts', [ContactController::class, 'store']);
+
 Route::middleware('auth:sanctum')->group(function () {
 
     // Changement des paramètres
     Route::post('/settings', [SettingController::class, 'set_setting']);
+
+    // Routes pour les contacts
+    Route::get('/contacts', [ContactController::class, 'index']);
+    Route::get('/contacts/{contact}', [ContactController::class, 'show']);
+    Route::delete('/contacts/{contact}', [ContactController::class, 'destroy']);
+    Route::get('/contacts/unread-count', [ContactController::class, 'unreadCount']);
     
     // Routes pour les questions
     Route::get('/questions', [QuestionController::class, 'index']);
