@@ -14,7 +14,8 @@ use App\Http\Controllers\BadgeUsersController;
 use App\Http\Controllers\ElevenLabsController;
 use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\ThematiqueController;
-use App\Http\Controllers\NiveauController; // Importez le contrôleur Niveau
+use App\Http\Controllers\NiveauController;
+use App\Http\Controllers\SettingController;
 
 Route::get('/evaluations/user/{id?}', [EvaluationController::class, 'getEvalUser']); //reccuperer les données d'évaluation d'un compte utilisateur ou d'un sous compte
 
@@ -42,8 +43,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Routes pour les Niveaux (NOUVELLES ROUTES)
 Route::put('/thematiques/{id}', [ThematiqueController::class, 'update']);
+
+// Routes pour les paramètres
+Route::get('/settings', [SettingController::class, 'get_setting']);
+
 Route::middleware('auth:sanctum')->group(function () {
 
+    // Changement des paramètres
+    Route::post('/settings', [SettingController::class, 'set_setting']);
+    
     // Routes pour les questions
     Route::get('/questions', [QuestionController::class, 'index']);
     Route::post('/questions', [QuestionController::class, 'store']);
