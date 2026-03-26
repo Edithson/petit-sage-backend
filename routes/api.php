@@ -143,8 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/{id}/verify-email-update', [UserController::class, 'verifyEmailUpdate']);
 
     Route::get('/types', [TypeController::class, 'index']);
+
+    Route::get('/evaluations/startEvaluation/{id}', [EvaluationController::class, 'startEvaluation']); // Pour démarrer une évaluation
 });
-
-
-Route::get('/evaluations/startEvaluation/{id}', [EvaluationController::class, 'startEvaluation']); // Pour démarrer une évaluation
 

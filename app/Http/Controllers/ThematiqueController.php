@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Niveau;
+use Illuminate\Support\Facades\Auth;
 
 class ThematiqueController extends Controller
 {
@@ -51,6 +52,19 @@ class ThematiqueController extends Controller
                     $query->has('questions', '>=', 3);
                 })
                 ->get();
+            
+            // Si l'utilisateur connecter est du type 1, on ne prend que les thématiques inférieures ou égales à son niveau
+            // if (auth()->user()->type_id == 1) {
+            //     $userNiveau = auth()->user()->niveau?->numero;
+
+            //     $thematiques = $thematiques->filter(function ($thematique) use ($userNiveau) {
+            //         // Si l'une ou l'autre des valeurs est null, on exclut la thématique
+            //         if (is_null($userNiveau) || is_null($thematique->niveau?->numero)) {
+            //             return false;
+            //         }
+            //         return $thematique->niveau->numero <= $userNiveau;
+            //     });
+            // }
             
             return PackageControlleur::successResponse(
                 $thematiques,
