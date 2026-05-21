@@ -17,6 +17,7 @@ use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\NiveauController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/evaluations/user/{id?}', [EvaluationController::class, 'getEvalUser']); //reccuperer les données d'évaluation d'un compte utilisateur ou d'un sous compte
 
@@ -52,6 +53,9 @@ Route::get('/settings', [SettingController::class, 'get_setting']);
 Route::post('/contacts', [ContactController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    // les dashboards
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Changement des paramètres
     Route::post('/settings', [SettingController::class, 'set_setting']);
