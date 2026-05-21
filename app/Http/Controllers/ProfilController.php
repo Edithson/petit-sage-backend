@@ -39,13 +39,17 @@ class ProfilController extends Controller
     }
 
     //reccuperer les profiles d'un utilisateur en partucilier
-    public function get_profils_user()
+    public function get_profils_user($id_user = null)
     {
         try {
             if (auth()->user()->type_id < 2) {
                 return PackageControlleur::errorResponse('Accès non autorisé.', 403);
             }
-            $profiles = Profil::with('niveau')->where('user_id', auth()->user()->id)->orderBy('created_at', 'desc')->get();
+            if ($id_user != null) {
+                $profiles = Profil::with('niveau')->where('user_id', $id_user)->orderBy('created_at', 'desc')->get();
+            }else{
+                $profiles = Profil::with('niveau')->where('user_id', auth()->user()->id)->orderBy('created_at', 'desc')->get();
+            }
             return PackageControlleur::successResponse(
                 $profiles,
                 'Liste des profiles récupérée avec succès',

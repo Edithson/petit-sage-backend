@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Niveau;
 use App\Models\Question;
+use App\Models\Evaluation;
+use App\Models\badge_users;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\PasswordResetToken;
@@ -59,12 +61,25 @@ class UserController extends Controller
             }
             //reccuperer toutes les questions enregistrée par un utilisateur et tout les badges qu'il a gagné
             $questions = Question::where('created_by', $user->id)->get();
-            $badges = $user->badges()->withTrashed()->get(); //meme si le badge a été supprimer
+            // Récupération des lignes pivots avec leur relation 'badge' chargée
+            $badge_users = badge_users::where('user_id', $user->id)
+                            ->whereNull('profil_id') // Utilisation de whereNull() plus propre
+                            ->with('badge')
+                            ->get();
+
+            // Extraction unique des objets Badge de la collection
+            $badges = $badge_users->pluck('badge');
+
+            $evaluations = Evaluation::with(['partie', 'thematique'])
+                    ->where('user_id', $user->id)
+                    ->where('profil_id', null)
+                    ->get();
 
             $data = [
                 'user' => $user,
                 'questions' => $questions,
                 'badges' => $badges,
+                'evaluations' => $evaluations,
             ];
             return PackageControlleur::successResponse(
                 $data,
