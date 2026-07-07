@@ -2,17 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use App\Models\User;
 use App\Models\Badge;
 use App\Models\Profil;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class badge_users extends Model
+class BadgeUser extends Pivot
 {
-    /** @use HasFactory<\Database\Factories\BadgeUsersFactory> */
-    use HasFactory;
+    protected $table = 'badge_users';
 
     protected $guarded = [];
 
@@ -26,7 +23,7 @@ class badge_users extends Model
         return $this->belongsTo(Badge::class);
     }
 
-    public function profil(): BelongsTo
+    public function profil()
     {
         return $this->belongsTo(Profil::class);
     }

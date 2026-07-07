@@ -11,11 +11,11 @@ use App\Models\Question;
 use App\Models\Partie;
 use App\Models\Profil;
 use App\Models\Thematique;
-use App\Models\badge_users;
+use App\Models\BadgeUser;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -32,7 +32,7 @@ class DashboardController extends Controller
             $kpis = [
                 'total_users' => User::count(),
                 'total_evaluations' => Evaluation::count(),
-                'total_badges' => badge_users::count(), // Badges débloqués par les apprenants
+                'total_badges' => BadgeUser::count(), // Badges débloqués par les apprenants
                 'unread_contacts' => Contact::unread()->count(),
             ];
 
@@ -67,13 +67,13 @@ class DashboardController extends Controller
                 'recentActivity' => $recentEvaluations
             ];
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Données statistiques récupérées avec succès'
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération données Dashboard', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des données : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des données : ' . $th->getMessage());
         }
     }
 }

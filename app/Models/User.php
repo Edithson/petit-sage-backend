@@ -67,7 +67,9 @@ class User extends Authenticatable
      */
     public function badges()
     {
-        return $this->belongsToMany(Badge::class, 'badge_users', 'user_id', 'badge_id')->withTimestamps();
+        return $this->belongsToMany(Badge::class, 'badge_users', 'user_id', 'badge_id')
+            ->using(BadgeUser::class)
+            ->withTimestamps();
     }
 
     /**
@@ -83,7 +85,7 @@ class User extends Authenticatable
      */
     public function questions()
     {
-        return $this->hasMany(Question::class, 'user_id');
+        return $this->hasMany(Question::class, 'created_by');
     }
 
     public function niveau()

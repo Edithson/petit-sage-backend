@@ -7,7 +7,7 @@ use App\Models\Question;
 use App\Models\Thematique;
 use App\Http\Requests\StorePartieRequest;
 use App\Http\Requests\UpdatePartieRequest;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 use Illuminate\Support\Facades\Validator;
 
 use Illuminate\Http\Request;
@@ -28,14 +28,14 @@ class PartieController extends Controller
             }else{
                 $parties = Partie::orderBy('numero')->get();
             }
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $parties,
                 'Liste des parties récupérée avec succès',
                 ['count' => $parties->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération parties', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des parties : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des parties : '.$th->getMessage());
         }
     }
 
@@ -61,7 +61,7 @@ class PartieController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return PackageControlleur::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation'.$validator->errors(), 422);
             }
 
             $data = $request->only(['name', 'description', 'thematique_id']);
@@ -79,14 +79,14 @@ class PartieController extends Controller
                 \App\Jobs\GenerateAudioCacheJob::dispatch($text);
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $partie,
                 'Partie crée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur création partie de jeu', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la création de la partie de jeu'.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la création de la partie de jeu'.$th->getMessage());
         }
     }
 
@@ -99,7 +99,7 @@ class PartieController extends Controller
             $partie = Partie::find($id);
             if (!$partie) {
                 \Log::error('Partie non trouvée.');
-                return PackageControlleur::errorResponse('Partie non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Partie non trouvée.', 404, []);
             }
             $niveau = $partie->thematique->niveau;
             $questions = Question::where('partie_id', $partie->id)
@@ -115,14 +115,14 @@ class PartieController extends Controller
                 'thematique' => $thematique,
                 'niveau' => $niveau
             ];
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Liste des parties récupérée avec succès',
                 ['count' => count($data)]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération parties', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des parties : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des parties : '.$th->getMessage());
         }
     }
 
@@ -135,16 +135,16 @@ class PartieController extends Controller
             $partie = Partie::find($id);
             if (!$partie) {
                 \Log::error('Partie non trouvée.');
-                return PackageControlleur::errorResponse('Partie non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Partie non trouvée.', 404, []);
             }
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $partie,
                 'Données de la partie',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération partie', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération de la partie : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération de la partie : '.$th->getMessage());
         }
     }
 
@@ -157,7 +157,7 @@ class PartieController extends Controller
             $partie = Partie::find($id);
             if (!$partie) {
                 \Log::error('Partie non trouvée.');
-                return PackageControlleur::errorResponse('Partie non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Partie non trouvée.', 404, []);
             }
 
             $validator = Validator::make($request->all(), [
@@ -167,7 +167,7 @@ class PartieController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return PackageControlleur::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation'.$validator->errors(), 422);
             }
 
             $data = $request->only(['name', 'description']);
@@ -195,14 +195,14 @@ class PartieController extends Controller
                 \App\Jobs\GenerateAudioCacheJob::dispatch($text);
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $partie,
                 'Partie Mise à jour avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur mise à jour partie de jeu', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la mise à jour de la partie de jeu'.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la mise à jour de la partie de jeu'.$th->getMessage());
         }
     }
 
@@ -223,7 +223,7 @@ class PartieController extends Controller
 
             DB::commit();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 null,
                 'Numéros de parties mis à jour avec succès.',
                 ['count' => count($validatedData)]
@@ -231,11 +231,11 @@ class PartieController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             \Log::error('Erreurs de validation lors de la réorganisation', ['error' => $e->errors()]);
-            return PackageControlleur::errorResponse('Erreurs de validation', 422, $e->errors());
+            return ResponseHelper::errorResponse('Erreurs de validation', 422, $e->errors());
         } catch (\Throwable $th) {
             DB::rollBack();
             \Log::error('Erreur lors de la mise à jour des numéros de parties', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la mise à jour des numéros de parties', 500);
+            return ResponseHelper::errorResponse('Erreur lors de la mise à jour des numéros de parties', 500);
         }
     }
 
@@ -247,13 +247,13 @@ class PartieController extends Controller
         try {
             if (auth()->user()->type_id < 2) {
                 \Log::error('Accès non autorisé.');
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
 
             $partie = Partie::find($id);
             if (!$partie) {
                 \Log::error('Partie non trouvée ou déjà suspendu.');
-                return PackageControlleur::errorResponse('Partie non trouvée ou déjà suspendu.', 404);
+                return ResponseHelper::errorResponse('Partie non trouvée ou déjà suspendu.', 404);
             }
 
             // CORRECTION ARCHITECTURALE : Ne pas utiliser le delete() en masse
@@ -283,14 +283,14 @@ class PartieController extends Controller
                 $this->safeDeleteAudio($text, 0);
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 [],
                 'Partie supprimée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur lors de la suppression partie de jeu', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la suppression de la partie de jeu'.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la suppression de la partie de jeu'.$th->getMessage());
         }
     }
 

@@ -19,7 +19,9 @@ class Profil extends Model
 
     public function badges()
     {
-        return $this->belongsToMany(Badge::class, 'badge_users', 'profil_id', 'badge_id')->withTimestamps();
+        return $this->belongsToMany(Badge::class, 'badge_users', 'profil_id', 'badge_id')
+            ->using(BadgeUser::class)
+            ->withTimestamps();
     }
 
     /**

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 use App\Mail\AdminContactNotification;
 use App\Models\Contact;
 use App\Models\Setting;
@@ -16,13 +16,13 @@ class ContactController extends Controller
     {
         try {
             $contacts = Contact::orderBy('created_at', 'desc')->get();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $contacts,
                 'Contacts retrieved successfully',
                 ['count' => $contacts->count()]
             );
         } catch (\Exception $e) {
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des contacts.' . $e->getMessage(), 500);
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des contacts.' . $e->getMessage(), 500);
         }
     }
 
@@ -39,15 +39,15 @@ class ContactController extends Controller
 
             // détection des erreurs de validation
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, $validator->errors()->toArray());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, $validator->errors()->toArray());
             }
 
             $contact = Contact::create($validator->validated());
 
             // Envoyer l'email à l'admin
-            // Récupération de l'email de l'admin depuis les paramètres
+            // Récupération de l'email de l'admin depuis les paramètres, avec fallback sur la config
             $setting = Setting::first();
-            $adminEmail = $setting && $setting->email ? $setting->email : 'pierrebeny63@gmail.com'; // Fallback de sécurité
+            $adminEmail = $setting && $setting->email ? $setting->email : config('mail.admin_email');
 
             // Envoi de l'email via la Queue (File d'attente)
             if ($adminEmail) {
@@ -58,14 +58,14 @@ class ContactController extends Controller
                 }
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $contact,
                 'Contact created successfully',
                 ['count' => 1],
                 201
             );
         } catch (\Throwable $th) {
-            return PackageControlleur::errorResponse('Erreur lors de la création du contact.' . $th->getMessage(), 500);
+            return ResponseHelper::errorResponse('Erreur lors de la création du contact.' . $th->getMessage(), 500);
         }
     }
 
@@ -73,13 +73,13 @@ class ContactController extends Controller
     {
         try {
             $contact->markAsRead();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $contact,
                 'Affichage d\'une demande de contact',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
-            return PackageControlleur::errorResponse('Erreur lors de l\'affichage du contact.' . $th->getMessage(), 500);
+            return ResponseHelper::errorResponse('Erreur lors de l\'affichage du contact.' . $th->getMessage(), 500);
         }
     }
 
@@ -87,14 +87,14 @@ class ContactController extends Controller
     {
         try {
             $contact->delete();
-            PackageControlleur::successResponse(
+            ResponseHelper::successResponse(
                 null,
                 'Contact supprimé avec succès',
                 ['count' => 0],
                 204
             );
         } catch (\Throwable $th) {
-            return PackageControlleur::errorResponse('Erreur lors de la suppression du contact.' . $th->getMessage(), 500);
+            return ResponseHelper::errorResponse('Erreur lors de la suppression du contact.' . $th->getMessage(), 500);
         }
     }
 
@@ -102,13 +102,13 @@ class ContactController extends Controller
     {
         try {
             $count = Contact::unread()->count();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 ['count' => $count],
                 'Compteur des contacts non lus récupéré avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
-            return PackageControlleur::errorResponse('Erreur lors de la récupération du compteur des contacts non lus.' . $th->getMessage(), 500);
+            return ResponseHelper::errorResponse('Erreur lors de la récupération du compteur des contacts non lus.' . $th->getMessage(), 500);
         }
     }
 }
