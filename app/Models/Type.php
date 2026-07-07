@@ -11,6 +11,8 @@ class Type extends Model
     /** @use HasFactory<\Database\Factories\TypeFactory> */
     use HasFactory;
 
+    protected $guarded = [];
+
     // récupérer tous les utilisateurs d'un type en particulier
     public function users()
     {
