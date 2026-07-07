@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TTSController;
+// use App\Http\Controllers\TTSController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TypeController;
 use App\Http\Controllers\UserController;
@@ -26,7 +26,7 @@ Route::get('/questions/assign-order-numbers', [QuestionController::class, 'giveQ
 Route::put('/questions/reorder', [QuestionController::class, 'reorder']);
 
 //synthèse vocale
-Route::post('/tts', [TTSController::class, 'generate']);
+// Route::post('/tts', [TTSController::class, 'generate']);
 Route::post('/synthesize-speech', [ElevenLabsController::class, 'synthesize']);
 
 Route::put('/parties/reorder', [PartieController::class, 'reorder']);
@@ -49,7 +49,7 @@ Route::put('/thematiques/{id}', [ThematiqueController::class, 'update']);
 // Routes pour les paramètres
 Route::get('/settings', [SettingController::class, 'get_setting']);
 
-// Routes pour les contacts
+// Routes pour les contacts (Publique : création d'un message de contact)
 Route::post('/contacts', [ContactController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -60,11 +60,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Changement des paramètres
     Route::post('/settings', [SettingController::class, 'set_setting']);
 
-    // Routes pour les contacts
+    // Routes pour les contacts (Sécurisées)
+    // ATTENTION : 'unread-count' doit impérativement être placé AVANT la route avec le paramètre dynamique '{contact}'
+    Route::get('/contacts/unread-count', [ContactController::class, 'unreadCount']);
     Route::get('/contacts', [ContactController::class, 'index']);
     Route::get('/contacts/{contact}', [ContactController::class, 'show']);
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy']);
-    Route::get('/contacts/unread-count', [ContactController::class, 'unreadCount']);
     
     // Routes pour les questions
     Route::get('/questions', [QuestionController::class, 'index']);
@@ -85,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/thematiques', [ThematiqueController::class, 'store']);
     Route::delete('/thematiques/{id}', [ThematiqueController::class, 'destroy']);
 
+    // Routes pour les Niveaux
     Route::get('/niveaux', [NiveauController::class, 'index']); // Liste des niveaux
     Route::post('/niveaux', [NiveauController::class, 'store']); // Créer un niveau
     Route::get('/niveaux/{id}', [NiveauController::class, 'show']); // Afficher un niveau
@@ -109,7 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Routes pour les Associations Badge-Utilisateur (si vous voulez des actions directes sur la pivot)
+    // Routes pour les Associations Badge-Utilisateur
     Route::get('/badgeusers/{id?}', [BadgeUsersController::class, 'index']);
     Route::post('/badgeusers/attach', [BadgeUsersController::class, 'attach']);
     Route::post('/badgeusers/detach', [BadgeUsersController::class, 'detach']);
@@ -129,7 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/evaluations/{id}', [EvaluationController::class, 'show']); // Pour consulter une évaluation spécifique
     Route::get('/evaluations', [EvaluationController::class, 'index']); // Pour lister toutes les évaluations (admin)
 
-    // Routes de gestion de profil personnel (déjà existantes)
+    // Routes de gestion de profil personnel
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::post('/users/{id}/change-password', [UserController::class, 'changePassword']);
@@ -139,8 +141,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Liste de tous les utilisateurs
     Route::post('/users', [UserController::class, 'store']); // Créer un utilisateur
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Restaurer un utilisateur
-    // La route PUT /users/{id} est déjà utilisée pour la mise à jour du profil.
-    // La route POST /users/{id}/suspend est utilisée pour la suspension personnelle et par l'admin.
 
     // Routes pour la vérification d'email lors de la mise à jour
     Route::post('/users/send-email-verification-code', [UserController::class, 'sendEmailVerificationCode']);
@@ -150,4 +150,3 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/evaluations/startEvaluation/{id}', [EvaluationController::class, 'startEvaluation']); // Pour démarrer une évaluation
 });
-

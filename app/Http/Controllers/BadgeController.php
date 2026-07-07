@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Badge;
-use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\PackageControlleur;
-use App\Models\Thematique; // Pour récupérer le nom de la thématique
 use App\Models\badge_users;
 
 class BadgeController extends Controller

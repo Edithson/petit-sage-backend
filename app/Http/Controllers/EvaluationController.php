@@ -241,13 +241,6 @@ class EvaluationController extends Controller
     }
 
     public function getEvalUser($id = null){
-        return true;
-        // if (!auth()->user()) {
-        //     return PackageControlleur::errorResponse('Accès non autorisé.', 403);
-        // }
-        // $user = auth()->user();
-        // return($user);
-
         try {
             if (isset($id) && !empty($id)) {
                 $evaluations = Evaluation::with(['partie', 'thematique'])
