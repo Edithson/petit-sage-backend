@@ -87,7 +87,7 @@ class ProfilController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $data = $request->only(['name', 'sexe', 'age', 'niveau_id']);
@@ -246,7 +246,7 @@ class ProfilController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $data = $request->only(['name', 'sexe', 'age', 'niveau_id', 'password']);
@@ -347,7 +347,7 @@ class ProfilController extends Controller
                 'password' => 'nullable|string|max:10',
             ]);
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
             $profil = Profil::find($request->profil_id);
             if (!$profil) {

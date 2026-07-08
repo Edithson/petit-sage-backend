@@ -49,7 +49,7 @@ class BadgeController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, $validator->errors()->toArray());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, $validator->errors()->toArray());
             }
 
             $badge = Badge::create($request->all());
@@ -127,7 +127,7 @@ class BadgeController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, $validator->errors()->toArray());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, $validator->errors()->toArray());
             }
 
             $badge->update($request->all());

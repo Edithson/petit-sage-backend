@@ -45,7 +45,7 @@ class EvaluationController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['errors' => $validator->errors(), 'request_data' => $request->all()]);
-                return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
             }
 
             $partie = Partie::find($request->partie_id);

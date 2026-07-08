@@ -57,7 +57,7 @@ class NiveauController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             // Trouver le numéro de niveau le plus élevé parmi les niveaux actifs
@@ -149,7 +149,7 @@ class NiveauController extends Controller
                 'description' => 'nullable|string|max:1000',
             ]);
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation', 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $niveau->nom = $request->nom;

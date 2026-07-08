@@ -61,7 +61,7 @@ class PartieController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return ResponseHelper::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422);
             }
 
             $data = $request->only(['name', 'description', 'thematique_id']);
@@ -167,7 +167,7 @@ class PartieController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return ResponseHelper::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422);
             }
 
             $data = $request->only(['name', 'description']);

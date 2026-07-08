@@ -39,7 +39,7 @@ class ContactController extends Controller
 
             // détection des erreurs de validation
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, $validator->errors()->toArray());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, $validator->errors()->toArray());
             }
 
             $contact = Contact::create($validator->validated());

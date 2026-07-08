@@ -112,7 +112,7 @@ class UserController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $num_niveau = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
@@ -184,20 +184,21 @@ class UserController extends Controller
                 'profil' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
             if ($validator->fails()) {
-                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
             // Gérer l'upload de la photo de profil
             if ($request->hasFile('profil')) {
-                if ($user->profil && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
+                if ($user->profil && $user->profil !== '/storage/profil/profil.png' && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $user->profil));
                 }
                 $path = $request->file('profil')->store('profil', 'public');
                 $user->profil = Storage::url($path);
             } elseif ($request->input('profil_removed')) {
-                if ($user->profil && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
+                // on ne supprime pas la photo de profil si il s'agit de l'image par défaut soit /storage/profil/profil.png
+                if ($user->profil && $user->profil !== '/storage/profil/profil.png' && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $user->profil));
                 }
-                $user->profil = null;
+                $user->profil = '/storage/profil/profil.png'; // Réinitialiser à l'image par défaut
             }
 
             // Si l'email a changé, marquer email_verified_at comme null.
@@ -377,8 +378,8 @@ class UserController extends Controller
         ]);
 
         if ($validator->fails()) {
-            \Log::error('Erreur de validation : '.$validator->errors());
-            return ResponseHelper::errorResponse('Erreur de validation : '.$validator->errors(), 422);
+            \Log::error('Erreur de validation : '.$validator->errors()->first());
+            return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
          }
 
         if (!Hash::check($request->current_password, $user->password)) {
@@ -427,8 +428,8 @@ class UserController extends Controller
             ]);
 
             if ($validator->fails()) {
-                \Log::error('Erreur de validation : '.$validator->errors());
-                return ResponseHelper::errorResponse('Erreur de validation : '.$validator->errors(), 422);
+                \Log::error('Erreur de validation : '.$validator->errors()->first());
+                return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
             }
 
             if (!Hash::check($request->password, $user->password)) {

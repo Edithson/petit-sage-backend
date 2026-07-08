@@ -124,7 +124,8 @@ class QuestionController extends Controller
     public function show($id)
     {
         try {
-            $question = Question::with(['thematique', 'partie'])->find($id);
+            // selectionné la question avec ses relations thematique, partie et creator
+            $question = Question::with(['thematique', 'partie', 'creator'])->find($id);
             if (!$question) {
                 return ResponseHelper::errorResponse('Question non trouvée.', 404, []);
             }

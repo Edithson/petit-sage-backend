@@ -73,7 +73,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors(), 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors()->first(), 'errors' => $validator->errors()], 422);
         }
 
         // Générer un code de vérification à 6 chiffres
@@ -115,7 +115,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors(), 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors()->first(), 'errors' => $validator->errors()], 422);
         }
 
         $storedToken = PasswordResetToken::where('email', $request->email)

@@ -140,7 +140,7 @@ class ThematiqueController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return ResponseHelper::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422);
             }
 
             $data = $request->only(['name', 'description', 'parent_id', 'media_type', 'media_description', 'niveau_id', 'nbr_min_point', 'couleur', 'emoji']);
@@ -271,7 +271,7 @@ class ThematiqueController extends Controller
                     'is_valid' => $request->file('media_file') ? $request->file('media_file')->isValid() : 'no file',
                     'error_code' => $request->file('media_file') ? $request->file('media_file')->getError() : 'N/A'
                 ]);
-                return ResponseHelper::errorResponse('Erreur validation : '.$validator->errors(), 422, $validator->errors());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, $validator->errors());
             }
 
             // On récupère les données sauf les médias pour l'instant
