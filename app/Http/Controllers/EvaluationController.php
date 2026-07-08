@@ -250,6 +250,8 @@ class EvaluationController extends Controller
             }else{
                 $evaluations = Evaluation::with(['partie', 'thematique'])
                     // ->where('user_id', $user->id)
+                    ->latest()
+                    ->limit(100)
                     ->get();
             }
 
