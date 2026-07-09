@@ -102,7 +102,8 @@ class PartieController extends Controller
                 return ResponseHelper::errorResponse('Partie non trouvée.', 404, []);
             }
             $niveau = $partie->thematique->niveau;
-            $questions = Question::where('partie_id', $partie->id)
+            $questions = Question::with(['thematique:id,name'])
+                ->where('partie_id', $partie->id)
                 ->where('thematique_id', $partie->thematique_id)
                 ->orderBy('numero')
                 ->get();

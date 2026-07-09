@@ -130,7 +130,7 @@ class ThematiqueController extends Controller
                 'parent_id' => 'nullable|integer|exists:thematiques,id', // parent_id doit exister dans la table thematiques
                 'media_type' => 'string|max:15',
                 'media_url' => 'nullable|url',
-                'media_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,ogg,mp3,wav|max:20480', // Max 20MB
+                'media_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,ogg,mp3,wav|max:30720', // Max 30MB
                 'media_description' => 'nullable|string|max:255',
                 'niveau_id' => 'nullable|integer|min:1|exists:niveaux,id',
                 'nbr_min_point' => 'nullable|integer|min:0',
@@ -257,7 +257,7 @@ class ThematiqueController extends Controller
                 'media_type' => 'required|in:text,url,file',
                 // Si c'est une URL, on valide le format
                 'media_url' => 'required_if:media_type,url|nullable|url',
-                'media_file' => 'nullable|file|max:20480',
+                'media_file' => 'nullable|file|max:30720',
                 'media_description' => 'nullable|string|max:255',
                 'niveau_id' => 'nullable|integer',
                 'nbr_min_point' => 'nullable|integer|min:0',

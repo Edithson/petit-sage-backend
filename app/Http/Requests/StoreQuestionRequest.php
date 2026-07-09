@@ -29,7 +29,7 @@ class StoreQuestionRequest extends FormRequest
             'intitule.text' => 'nullable|string',
             'intitule.mediaDescription' => 'nullable|string',
             'intitule.mediaUrl' => 'nullable|string',
-            'intitule.mediaFile' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:20480',
+            'intitule.mediaFile' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:30720', //jusqu'à 30MB
             'theme' => 'required|integer|exists:thematiques,id',
             'partie_id' => 'required|integer|exists:parties,id',
             'difficulte' => 'required|string|in:1,2,3',
@@ -53,7 +53,7 @@ class StoreQuestionRequest extends FormRequest
             if ($this->input('intitule.mediaSourceType') === 'url') {
                 $rules['intitule.mediaUrl'] = 'required';
             } elseif ($this->input('intitule.mediaSourceType') === 'file') {
-                $rules['intitule.mediaFile'] = 'required|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:20480';
+                $rules['intitule.mediaFile'] = 'required|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:30720';
             }
         }
 

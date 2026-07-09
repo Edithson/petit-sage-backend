@@ -124,8 +124,14 @@ class QuestionController extends Controller
     public function show($id)
     {
         try {
-            // selectionné la question avec ses relations thematique, partie et creator
-            $question = Question::with(['thematique', 'partie', 'creator'])->find($id);
+            // selectionné la question avec ses relations thematique, partie, creator et lastUpdater
+            // reccuperer juste l'id et le nom du créateur et du dernier modificateur
+            $question = Question::with([
+                'thematique:id,name', 
+                'partie:id,name', 
+                'creator:id,name',       // Charge uniquement id et name de l'utilisateur
+                'lastUpdater:id,name'   // Charge uniquement id et name de l'utilisateur
+            ])->find($id);
             if (!$question) {
                 return ResponseHelper::errorResponse('Question non trouvée.', 404, []);
             }

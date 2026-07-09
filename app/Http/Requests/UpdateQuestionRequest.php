@@ -29,7 +29,7 @@ class UpdateQuestionRequest extends FormRequest
             'intitule.text' => 'nullable|string',
             'intitule.mediaDescription' => 'nullable|string',
             'intitule.mediaUrl' => 'nullable|string',
-            'intitule.mediaFile' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:20480',
+            'intitule.mediaFile' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:30720',
             'theme' => 'required|integer|exists:thematiques,id',
             'partie_id' => 'required|integer|exists:parties,id',
             'difficulte' => 'required|integer|in:1,2,3',
@@ -54,7 +54,7 @@ class UpdateQuestionRequest extends FormRequest
                 $rules['intitule.mediaUrl'] = 'required|string';
             } elseif ($this->input('intitule.mediaSourceType') === 'file') {
                 // Rendre le fichier optionnel si l'on ne veut pas le remplacer
-                $rules['intitule.mediaFile'] = 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:20480';
+                $rules['intitule.mediaFile'] = 'nullable|file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm,mp3,wav|max:30720';
             }
         }
 
