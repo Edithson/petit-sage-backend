@@ -128,11 +128,11 @@ class ProfilController extends Controller
             }
 
             if ($id != null) {
-                $profil = Profil::with(['user', 'niveau', 'badges'])
+                $profil = Profil::with(['user:id,email,name', 'niveau:id,numero,nom', 'badges:id,titre,emoji'])
                     ->where('id', $id)
                     ->first();
             }else{
-                $profil = User::with(['niveau', 'badges'])
+                $profil = User::with(['niveau:id,numero,nom', 'badges:id,titre,emoji'])
                     ->where('id', auth()->user()->id)
                     ->first();
             }
@@ -157,14 +157,18 @@ class ProfilController extends Controller
                 }
 
                 // Récupération des évaluations
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', $profil->user_id)
                     ->where('profil_id', $profil->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10) // Limiter à 10 évaluations récentes
                     ->get();
             } else {
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', auth()->user()->id)
                     ->where('profil_id', null)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
                     ->get();
             }
             $badges = [];

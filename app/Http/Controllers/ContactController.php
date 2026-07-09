@@ -87,7 +87,7 @@ class ContactController extends Controller
     {
         try {
             $contact->delete();
-            ResponseHelper::successResponse(
+            return ResponseHelper::successResponse(
                 null,
                 'Contact supprimé avec succès',
                 ['count' => 0],

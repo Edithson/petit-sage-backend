@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Question;
-use App\Models\Thematique;
-use App\Models\Badge;
 use App\Http\Controllers\ResponseHelper;
-use Illuminate\Http\Request;
 use App\Http\Requests\StoreThematiqueRequest;
 use App\Http\Requests\UpdateThematiqueRequest;
+use App\Models\Badge;
+use App\Models\Niveau;
+use App\Models\Partie;
+use App\Models\Question;
+use App\Models\Thematique;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use App\Models\Niveau;
-use Illuminate\Support\Facades\Auth;
 
 class ThematiqueController extends Controller
 {
@@ -350,8 +351,16 @@ class ThematiqueController extends Controller
                 Thematique::where('parent_id', $thematique->id)->delete(); // Soft delete des sous-thèmes
             }
 
-            Question::where('thematique_id', $thematique->id)->delete();
+            // supprimer les questions badges et les parties associés à cette thématique
             Badge::where('thematique_id', $thematique->id)->delete();
+            Partie::where('thematique_id', $thematique->id)->delete();
+
+            // On récupère les questions et on les supprime via le contrôleur pour déclencher le nettoyage audio
+            $questions = Question::where('thematique_id', $thematique->id)->get();
+            $questionController = app(\App\Http\Controllers\QuestionController::class);
+            foreach ($questions as $question) {
+                $questionController->destroy($question->id);
+            }
 
             $thematique->delete(); // Soft delete de la thématique principale
 
