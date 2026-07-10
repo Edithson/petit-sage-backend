@@ -4,15 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Niveau;
-use App\Models\Question;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\PasswordResetToken;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\PackageControlleur;
-use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\ResponseHelper;
 
 class UserController extends Controller
 {
@@ -25,19 +23,19 @@ class UserController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
-            // Récupérer tous les utilisateurs, y compris ceux qui sont soft-deleted avec leurs types respectifs
-            $users = User::withTrashed()->with('type')->get();
+            // Récupérer tous les utilisateurs paginés, y compris ceux qui sont soft-deleted avec leurs types respectifs
+            $users = User::withTrashed()->with('type')->paginate(15);
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $users,
                 'Liste des utilisateurs récupérée avec succès',
                 ['count' => $users->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération utilisateurs', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des utilisateurs : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des utilisateurs : ' . $th->getMessage());
         }
     }
 
@@ -51,29 +49,38 @@ class UserController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2 && auth()->id() != $id) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
-            $user = User::withTrashed()->with('type', 'niveau')->find($id); // Inclure les utilisateurs suspendus
+            $user = User::withTrashed()->with([
+                'type',
+                'niveau',
+                'questions',
+                'badges' => function ($q) {
+                    $q->wherePivot('profil_id', null);
+                },
+                'evaluations' => function ($q) {
+                    $q->whereNull('profil_id')->with(['partie', 'thematique']);
+                }
+            ])->find($id); // Inclure les utilisateurs suspendus
+
             if (!$user) {
-                return PackageControlleur::errorResponse('Utilisateur non trouvé.', 404);
+                return ResponseHelper::errorResponse('Utilisateur non trouvé.', 404);
             }
-            //reccuperer toutes les questions enregistrée par un utilisateur et tout les badges qu'il a gagné
-            $questions = Question::where('created_by', $user->id)->get();
-            $badges = $user->badges()->withTrashed()->get(); //meme si le badge a été supprimer
 
             $data = [
                 'user' => $user,
-                'questions' => $questions,
-                'badges' => $badges,
+                'questions' => $user->questions,
+                'badges' => $user->badges,
+                'evaluations' => $user->evaluations,
             ];
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Données de l\'utilisateur récupérées avec succès',
                 ['count' => count($data)]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération utilisateur', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération de l\'utilisateur : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération de l\'utilisateur : ' . $th->getMessage());
         }
     }
 
@@ -87,7 +94,7 @@ class UserController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
@@ -101,7 +108,7 @@ class UserController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $num_niveau = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
@@ -127,13 +134,12 @@ class UserController extends Controller
                 $user->profil = Storage::url($path);
             }
 
-            $user->save();
-
             // Marquer l'email comme non vérifié pour qu'il le fasse à la première connexion
             $user->email_verified_at = null;
+
             $user->save();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $user,
                 'Utilisateur créé avec succès',
                 ['count' => 1],
@@ -141,7 +147,7 @@ class UserController extends Controller
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur ajout utilisateur', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de l\'ajout du l\'utilisateur : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de l\'ajout du l\'utilisateur : ' . $th->getMessage());
         }
     }
 
@@ -157,11 +163,11 @@ class UserController extends Controller
         try {
             $user = User::withTrashed()->find($id); // Inclure les utilisateurs suspendus
             if (!$user) {
-                return PackageControlleur::errorResponse('Utilisateur non trouvé!.', 404);
+                return ResponseHelper::errorResponse('Utilisateur non trouvé!.', 404);
             }
             // Un utilisateur ne peut modifier que son propre profil, un admin peut modifier n'importe quel profil
-            if (auth()->id() != $user->id && auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+            if (auth()->id() != $user->id && auth()->user()->type_id < 4) {
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
@@ -170,24 +176,25 @@ class UserController extends Controller
                 'age' => 'nullable|integer|min:0|max:150',
                 'telephone' => 'nullable|string|max:20',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
-                'type_id' => 'required|integer|in:1,2,3', // Type d'utilisateur, seuls les admins peuvent changer cela
+                'type_id' => 'required|integer|in:1,2,3,4', // Type d'utilisateur, seuls les admins peuvent changer cela
                 'profil' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
             // Gérer l'upload de la photo de profil
             if ($request->hasFile('profil')) {
-                if ($user->profil && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
+                if ($user->profil && $user->profil !== '/storage/profil/profil.png' && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $user->profil));
                 }
                 $path = $request->file('profil')->store('profil', 'public');
                 $user->profil = Storage::url($path);
             } elseif ($request->input('profil_removed')) {
-                if ($user->profil && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
+                // on ne supprime pas la photo de profil si il s'agit de l'image par défaut soit /storage/profil/profil.png
+                if ($user->profil && $user->profil !== '/storage/profil/profil.png' && Storage::disk('public')->exists(str_replace('/storage/', '', $user->profil))) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $user->profil));
                 }
-                $user->profil = null;
+                $user->profil = '/storage/profil/profil.png'; // Réinitialiser à l'image par défaut
             }
 
             // Si l'email a changé, marquer email_verified_at comme null.
@@ -203,21 +210,19 @@ class UserController extends Controller
             $user->telephone = ($request->telephone && $request->telephone !== '') ? $request->telephone : null;
             $user->niveau_id = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
 
-            // Seuls les admins peuvent changer le type_id d'un utilisateur
-            if (auth()->user()->type_id >= 2) {
+            // Seuls les super admins peuvent changer le type_id d'un utilisateur
+            if (auth()->user()->type_id > 3) {
                 $user->type_id = $request->type_id;
+            }
+
+            // Si l'email a changé, mettre à jour l'email de l'utilisateur avant le save
+            if ($request->email !== $user->email && !User::where('email', $request->email)->exists()) {
+                $user->email = $request->email;
             }
 
             $user->save();
 
-            // Si l'email a changé, mettre à jour l'email de l'utilisateur après le save
-            // pour qu'il ne soit pas unique:users,email,id validé contre l'ancienne email
-            if ($request->email !== $user->email && !User::where('email', $request->email)->exists()) {
-                $user->email = $request->email;
-                $user->save(); // Sauvegarder l'email après les autres champs
-            }
-
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $user,
                 'Utilisateur mise à jour avec succès',
                 ['count' => 1],
@@ -225,7 +230,7 @@ class UserController extends Controller
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur mise à jour utilisateur', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la mise à jour de l\'utilisateur : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la mise à jour de l\'utilisateur : ' . $th->getMessage());
         }
     }
 
@@ -355,12 +360,12 @@ class UserController extends Controller
 
         if (!$user) {
             \Log::error('Utilisateur non trouvé ou non suspendu.');
-            return PackageControlleur::errorResponse('Utilisateur non trouvé ou non suspendu.', 404);
+            return ResponseHelper::errorResponse('Utilisateur non trouvé ou non suspendu.', 404);
         }
 
         if (auth()->id() != $user->id) {
             \Log::error('Accès non autorisé. Vous ne pouvez pas modifier un super administrateur.');
-            return PackageControlleur::errorResponse('Accès non autorisé. Vous ne pouvez pas modifier un super administrateur.', 403);
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas modifier un super administrateur.', 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -369,13 +374,13 @@ class UserController extends Controller
         ]);
 
         if ($validator->fails()) {
-            \Log::error('Erreur de validation : '.$validator->errors());
-            return PackageControlleur::errorResponse('Erreur de validation : '.$validator->errors(), 422);
+            \Log::error('Erreur de validation : '.$validator->errors()->first());
+            return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
          }
 
         if (!Hash::check($request->current_password, $user->password)) {
             \Log::error('Le mot de passe actuel est incorrect.');
-            return PackageControlleur::errorResponse(
+            return ResponseHelper::errorResponse(
                 'Le mot de passe actuel est incorrect.',
                 401
             );
@@ -384,7 +389,7 @@ class UserController extends Controller
         $user->password = Hash::make($request->new_password);
         $user->save();
 
-        return PackageControlleur::successResponse(
+        return ResponseHelper::successResponse(
             [],
             'Mot de passe mis à jour avec succès.'
         );
@@ -400,16 +405,16 @@ class UserController extends Controller
     public function suspendAccount(Request $request, $id)
     {
         // Seuls les administrateurs ou l'utilisateur lui-même peuvent suspendre
-        if (auth()->user()->type_id < 2 && auth()->id() != $id) {
+        if (auth()->user()->type_id < 3 && auth()->id() != $id) {
             \Log::error('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.');
-            return PackageControlleur::errorResponse('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.', 403);
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.', 403);
         }
 
         $user = User::find($id); // Ne pas utiliser withTrashed() ici, car on veut suspendre un utilisateur actif
 
         if (!$user) {
             \Log::error('Utilisateur non trouvé ou déjà suspendu.');
-            return PackageControlleur::errorResponse('Utilisateur non trouvé ou déjà suspendu.', 404);
+            return ResponseHelper::errorResponse('Utilisateur non trouvé ou déjà suspendu.', 404);
         }
 
         // Si c'est l'utilisateur lui-même qui suspend, il doit fournir son mot de passe
@@ -419,13 +424,13 @@ class UserController extends Controller
             ]);
 
             if ($validator->fails()) {
-                \Log::error('Erreur de validation : '.$validator->errors());
-                return PackageControlleur::errorResponse('Erreur de validation : '.$validator->errors(), 422);
+                \Log::error('Erreur de validation : '.$validator->errors()->first());
+                return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
             }
 
             if (!Hash::check($request->password, $user->password)) {
                 \Log::error('Mot de passe incorrect. Impossible de suspendre le compte.');
-                return PackageControlleur::errorResponse('Mot de passe incorrect. Impossible de suspendre le compte.', 401);
+                return ResponseHelper::errorResponse('Mot de passe incorrect. Impossible de suspendre le compte.', 401);
             }
             $user->tokens()->delete(); // Déconnecter l'utilisateur si c'est lui-même
         } else {
@@ -433,14 +438,14 @@ class UserController extends Controller
             // Mais l'admin ne peut pas suspendre un super admin
             if ($user->type_id === 3 && auth()->user()->type_id < 3) {
                 \Log::error('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.');
-                return PackageControlleur::errorResponse('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.', 403);
             }
         }
 
         $user->delete(); // Cela mettra à jour le champ `deleted_at`
         $user_data = User::onlyTrashed()->find($id);
 
-        return PackageControlleur::successResponse(
+        return ResponseHelper::successResponse(
             $user_data,
             'Compte suspendu avec succès.',
             ['count' => 1]
@@ -455,22 +460,22 @@ class UserController extends Controller
      */
     public function restore($id)
     {
-        // Seuls les administrateurs (type_id > 1) peuvent restaurer des utilisateurs
-        if (auth()->user()->type_id < 2) {
+        // Seuls les administrateurs (type_id > 2) peuvent restaurer des utilisateurs
+        if (auth()->user()->type_id < 3) {
             \Log::error('Accès non autorisé. Vous ne pouvez pas restaurer un super administrateur.');
-            return PackageControlleur::errorResponse('Accès non autorisé. Vous ne pouvez pas restaurer un super administrateur.', 403);
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas restaurer un super administrateur.', 403);
         }
 
         $user = User::onlyTrashed()->find($id); // Chercher uniquement dans les éléments soft-deleted
 
         if (!$user) {
             \Log::error('Utilisateur non trouvé ou non suspendu.');
-            return PackageControlleur::errorResponse('Utilisateur non trouvé ou non suspendu.', 404);
+            return ResponseHelper::errorResponse('Utilisateur non trouvé ou non suspendu.', 404);
         }
 
         $user->restore(); // Restaure l'utilisateur
 
-        return PackageControlleur::successResponse(
+        return ResponseHelper::successResponse(
             $user,
             'Compte restauré avec succès.',
             ['count' => 1]

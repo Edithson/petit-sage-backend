@@ -35,7 +35,9 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             // Régénère la session pour éviter les fixations de session
-            $request->session()->regenerate();
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+            }
 
             $user = Auth::user();
 
@@ -71,7 +73,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors(), 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors()->first(), 'errors' => $validator->errors()], 422);
         }
 
         // Générer un code de vérification à 6 chiffres
@@ -113,7 +115,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors(), 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Erreurs de validation : '.$validator->errors()->first(), 'errors' => $validator->errors()], 422);
         }
 
         $storedToken = PasswordResetToken::where('email', $request->email)
@@ -236,8 +238,10 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Déconnexion réussie.']);
     }

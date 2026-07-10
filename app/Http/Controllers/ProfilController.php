@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreProfilRequest;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\UpdateProfilRequest;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 
 class ProfilController extends Controller
 {
@@ -27,33 +27,37 @@ class ProfilController extends Controller
     {
         try {
             $profiles = Profil::with('user', 'niveau')->orderBy('created_at', 'desc')->get();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profiles,
                 'Liste des profiles récupérée avec succès',
                 ['count' => $profiles->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération des profiles joueurs', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des profiles joueurs : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des profiles joueurs : '.$th->getMessage());
         }
     }
 
     //reccuperer les profiles d'un utilisateur en partucilier
-    public function get_profils_user()
+    public function get_profils_user($id_user = null)
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
-            $profiles = Profil::with('niveau')->where('user_id', auth()->user()->id)->orderBy('created_at', 'desc')->get();
-            return PackageControlleur::successResponse(
+            if ($id_user != null) {
+                $profiles = Profil::with('niveau')->where('user_id', $id_user)->orderBy('created_at', 'desc')->get();
+            }else{
+                $profiles = Profil::with('niveau')->where('user_id', auth()->user()->id)->orderBy('created_at', 'desc')->get();
+            }
+            return ResponseHelper::successResponse(
                 $profiles,
                 'Liste des profiles récupérée avec succès',
                 ['count' => $profiles->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération des profiles joueurs', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des profiles joueurs : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des profiles joueurs : '.$th->getMessage());
         }
     }
 
@@ -72,7 +76,7 @@ class ProfilController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
@@ -83,14 +87,14 @@ class ProfilController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $data = $request->only(['name', 'sexe', 'age', 'niveau_id']);
-            $data['code'] = PackageControlleur::generateUniqueUserCode(); // Générer un code unique
+            $data['code'] = ResponseHelper::generateUniqueUserCode(); // Générer un code unique
             $data['user_id'] = auth()->user()->id;
             // Mot de passe par défaut (pour le développement)
-            $data['password'] = PackageControlleur::crypterChaine('1234');
+            $data['password'] = ResponseHelper::crypterChaine('1234');
 
             if ($request->hasFile('profil')) {
                 $path = $request->file('profil')->store('profil', 'public');
@@ -100,7 +104,7 @@ class ProfilController extends Controller
 
             $profil = Profil::create($data);
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profil,
                 'Profil créé avec succès',
                 ['count' => 1],
@@ -108,7 +112,7 @@ class ProfilController extends Controller
             );
         } catch (\Throwable $th) {
             Log::error('Erreur ajout profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de l\'ajout du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de l\'ajout du profil : ' . $th->getMessage());
         }
     }
 
@@ -120,32 +124,32 @@ class ProfilController extends Controller
         try {
             // Vérifier l'authentification
             if (!auth()->check()) {
-                return PackageControlleur::errorResponse('Non authentifié.', 401);
+                return ResponseHelper::errorResponse('Non authentifié.', 401);
             }
 
             if ($id != null) {
-                $profil = Profil::with(['user', 'niveau', 'badges'])
+                $profil = Profil::with(['user:id,email,name', 'niveau:id,numero,nom', 'badges:id,titre,emoji'])
                     ->where('id', $id)
                     ->first();
             }else{
-                $profil = User::with(['niveau', 'badges'])
+                $profil = User::with(['niveau:id,numero,nom', 'badges:id,titre,emoji'])
                     ->where('id', auth()->user()->id)
                     ->first();
             }
 
             if (!$profil) {
-                return PackageControlleur::errorResponse('Profil non trouvé.', 404);
+                return ResponseHelper::errorResponse('Profil non trouvé.', 404);
             }
 
             if ($id !== null){
                 // Vérification des autorisations
                 if (auth()->user()->type_id < 2 && auth()->user()->id !== $profil->user_id) {
-                    return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                    return ResponseHelper::errorResponse('Accès non autorisé.', 403);
                 }
 
                 // Décryptage du mot de passe (si nécessaire - à éviter de retourner au front!)
                 try {
-                    $decrypted = PackageControlleur::decrypterChaine($profil->password);
+                    $decrypted = ResponseHelper::decrypterChaine($profil->password);
                     $profil->password = $decrypted ?: "";
                 } catch (\Throwable $th) {
                     \Log::error('Erreur lors du décryptage du mot de passe : '.$th->getMessage(), ['error' => $th->getMessage()]);
@@ -153,14 +157,18 @@ class ProfilController extends Controller
                 }
 
                 // Récupération des évaluations
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', $profil->user_id)
                     ->where('profil_id', $profil->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10) // Limiter à 10 évaluations récentes
                     ->get();
             } else {
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', auth()->user()->id)
                     ->where('profil_id', null)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
                     ->get();
             }
             $badges = [];
@@ -171,7 +179,7 @@ class ProfilController extends Controller
                 'badges' => $badges,
             ];
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Profil récupéré avec succès',
                 ['count' => 1],
@@ -182,7 +190,7 @@ class ProfilController extends Controller
                 'error' => $th->getMessage(),
                 'trace' => $th->getTraceAsString()
             ]);
-            return PackageControlleur::errorResponse(
+            return ResponseHelper::errorResponse(
                 'Erreur lors de la sélection du profil : ' . $th->getMessage(),
                 500
             );
@@ -197,20 +205,20 @@ class ProfilController extends Controller
         try {
             $profil = Profil::find($id);
             if (!$profil) {
-                return PackageControlleur::errorResponse('Profil non trouvé.', 404);
+                return ResponseHelper::errorResponse('Profil non trouvé.', 404);
             }
             if (auth()->user()->type_id < 2 || auth()->user()->id !== $profil->user_id) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             // Décryptage du mot de passe (si nécessaire - à éviter de retourner au front!)
             try {
-                $decrypted = PackageControlleur::decrypterChaine($profil->password);
+                $decrypted = ResponseHelper::decrypterChaine($profil->password);
                 $profil->password = $decrypted ?: "";
             } catch (\Throwable $th) {
                 \Log::error('Erreur lors du décryptage du mot de passe : '.$th->getMessage(), ['error' => $th->getMessage()]);
                 $profil->password = "";
             }
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profil,
                 'Profil mit à jour avec succès',
                 ['count' => 1],
@@ -218,7 +226,7 @@ class ProfilController extends Controller
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur selection profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la sélection du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la sélection du profil : ' . $th->getMessage());
         }
     }
 
@@ -229,7 +237,7 @@ class ProfilController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
@@ -242,13 +250,13 @@ class ProfilController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $data = $request->only(['name', 'sexe', 'age', 'niveau_id', 'password']);
             $profil = Profil::find($id);
             if ($request->filled('password')) {
-                $data['password'] = PackageControlleur::crypterChaine($request->password);
+                $data['password'] = ResponseHelper::crypterChaine($request->password);
             } else {
                 unset($data['password']);
             }
@@ -271,7 +279,7 @@ class ProfilController extends Controller
 
             $profil->update($data);
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profil,
                 'Profil mit à jour avec succès',
                 ['count' => 1],
@@ -279,7 +287,7 @@ class ProfilController extends Controller
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur mise à jour profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la mise à jour du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la mise à jour du profil : ' . $th->getMessage());
         }
     }
 
@@ -290,23 +298,23 @@ class ProfilController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $profile = Profil::find($id);
             if (!$profile) {
                 \Log::error('Profile non trouvée ou déjà suspendu.');
-                return PackageControlleur::errorResponse('Profile non trouvée ou déjà suspendu.', 404);
+                return ResponseHelper::errorResponse('Profile non trouvée ou déjà suspendu.', 404);
             }
             $profile->delete();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 [],
                 'Profile supprimée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur suppression profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la suppression du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la suppression du profil : ' . $th->getMessage());
         }
     }
 
@@ -315,22 +323,22 @@ class ProfilController extends Controller
         try {
             $profile = Profil::find($id);
             if (!$profile) {
-                return PackageControlleur::errorResponse('Profile non trouvée.', 404);
+                return ResponseHelper::errorResponse('Profile non trouvée.', 404);
             }
             if (auth()->user()->type_id < 2 || auth()->user()->id !== $profile->user_id) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $profile->is_active = !$profile->is_active;
             $profile->save();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profile,
                 'Status du profil mis à jour avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur mise à jour status profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la mise à jour du status du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la mise à jour du status du profil : ' . $th->getMessage());
         }
     }
 
@@ -343,36 +351,36 @@ class ProfilController extends Controller
                 'password' => 'nullable|string|max:10',
             ]);
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
             $profil = Profil::find($request->profil_id);
             if (!$profil) {
-                return PackageControlleur::errorResponse('Profil non trouvé.', 404);
+                return ResponseHelper::errorResponse('Profil non trouvé.', 404);
             }
             if (auth()->user()->type_id < 2 || auth()->user()->id !== $profil->user_id) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             if ( isset($profil->password) && !empty($profil->password)) {
                 if ($request->password) {
-                    if ($request->password !== PackageControlleur::decrypterChaine($profil->password)) {
-                        return PackageControlleur::errorResponse('Mot de passe incorrect.', 401);
+                    if ($request->password !== ResponseHelper::decrypterChaine($profil->password)) {
+                        return ResponseHelper::errorResponse('Mot de passe incorrect.', 401);
                     }
                 }else {
                     // Si aucun mot de passe n'est fourni, on utilise le mot de passe par défaut
-                    if (PackageControlleur::decrypterChaine($profil->password) !== '1234') {
-                        return PackageControlleur::errorResponse('Mot de passe requis.', 401);
+                    if (ResponseHelper::decrypterChaine($profil->password) !== '1234') {
+                        return ResponseHelper::errorResponse('Mot de passe requis.', 401);
                     }
                 }
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $profil,
                 'Connexion réussie',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur connexion profil', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la connexion du profil : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la connexion du profil : ' . $th->getMessage());
         }
     }
 

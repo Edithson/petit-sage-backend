@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Question;
-use App\Models\Thematique;
-use App\Models\Badge;
-use App\Http\Controllers\PackageControlleur;
-use Illuminate\Http\Request;
+use App\Http\Controllers\ResponseHelper;
 use App\Http\Requests\StoreThematiqueRequest;
 use App\Http\Requests\UpdateThematiqueRequest;
+use App\Models\Badge;
+use App\Models\Niveau;
+use App\Models\Partie;
+use App\Models\Question;
+use App\Models\Thematique;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use App\Models\Niveau;
-use Illuminate\Support\Facades\Auth;
 
 class ThematiqueController extends Controller
 {
@@ -31,14 +33,14 @@ class ThematiqueController extends Controller
                 $thematiques = Thematique::all();
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematiques,
                 'Liste des thématiques récupérée avec succès',
                 ['count' => $thematiques->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération thématiques', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des thématiques');
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des thématiques');
         }
     }
 
@@ -66,14 +68,14 @@ class ThematiqueController extends Controller
             //     });
             // }
             
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematiques,
                 'Liste des thématiques récupérée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération thématiques : '.$th->getMessage(), ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des thématiques');
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des thématiques');
         }
     }
     
@@ -81,14 +83,14 @@ class ThematiqueController extends Controller
     {
         try {
             $thematique = Thematique::find($id);
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematique,
                 'Thématique récupérée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération thématique', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération de la thématique');
+            return ResponseHelper::errorResponse('Erreur lors de la récupération de la thématique');
         }
     }
 
@@ -98,14 +100,14 @@ class ThematiqueController extends Controller
             $thematiques = Thematique::with('niveau:id,numero')
                 ->where('parent_id', null)
                 ->get();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematiques,
                 'Liste des thématiques récupérée avec succès',
                 ['count' => $thematiques->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération thématiques', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des thématiques');
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des thématiques');
         }
     }
 
@@ -130,7 +132,7 @@ class ThematiqueController extends Controller
                 'parent_id' => 'nullable|integer|exists:thematiques,id', // parent_id doit exister dans la table thematiques
                 'media_type' => 'string|max:15',
                 'media_url' => 'nullable|url',
-                'media_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,ogg,mp3,wav|max:20480', // Max 20MB
+                'media_file' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,ogg,mp3,wav|max:30720', // Max 30MB
                 'media_description' => 'nullable|string|max:255',
                 'niveau_id' => 'nullable|integer|min:1|exists:niveaux,id',
                 'nbr_min_point' => 'nullable|integer|min:0',
@@ -140,7 +142,7 @@ class ThematiqueController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['error' => $validator->errors()]);
-                return PackageControlleur::errorResponse('Erreurs de validation'.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422);
             }
 
             $data = $request->only(['name', 'description', 'parent_id', 'media_type', 'media_description', 'niveau_id', 'nbr_min_point', 'couleur', 'emoji']);
@@ -164,14 +166,14 @@ class ThematiqueController extends Controller
 
             $thematique = Thematique::create($data);
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematique,
                 'Thématique crée avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur création thématique', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la création de la thématique'.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la création de la thématique'.$th->getMessage());
         }
     }
     /**
@@ -183,7 +185,7 @@ class ThematiqueController extends Controller
             $thematique = Thematique::find($id);
             if (!$thematique) {
                 \Log::error('Thématique non trouvée.');
-                return PackageControlleur::errorResponse('Thématique non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Thématique non trouvée.', 404, []);
             }
 
             $niveau = Niveau::find($thematique->niveau_id);
@@ -206,14 +208,14 @@ class ThematiqueController extends Controller
                 'niveau' => $niveau
             ];
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Données Thématiques récupérées avec succès',
                 ['count' => count($data)]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur reccupération données thématique ', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la reccupération des données thématique '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la reccupération des données thématique '.$th->getMessage());
         }
     }
 
@@ -226,16 +228,16 @@ class ThematiqueController extends Controller
             $thematique = Thematique::find($id);
             if (!$thematique) {
                 \Log::error('Thématique non trouvée.');
-                return PackageControlleur::errorResponse('Thématique non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Thématique non trouvée.', 404, []);
             }
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $thematique,
                 'Données Thématique récupérées avec succès',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur reccupération données thématique ', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la reccupération des données thématique '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la reccupération des données thématique '.$th->getMessage());
         }
     }
 
@@ -247,7 +249,7 @@ class ThematiqueController extends Controller
         try {
             $thematique = Thematique::find($id);
             if (!$thematique) {
-                return PackageControlleur::errorResponse('Thématique non trouvée.', 404);
+                return ResponseHelper::errorResponse('Thématique non trouvée.', 404);
             }
 
             $validator = Validator::make($request->all(), [
@@ -257,7 +259,7 @@ class ThematiqueController extends Controller
                 'media_type' => 'required|in:text,url,file',
                 // Si c'est une URL, on valide le format
                 'media_url' => 'required_if:media_type,url|nullable|url',
-                'media_file' => 'nullable|file|max:20480',
+                'media_file' => 'nullable|file|max:30720',
                 'media_description' => 'nullable|string|max:255',
                 'niveau_id' => 'nullable|integer',
                 'nbr_min_point' => 'nullable|integer|min:0',
@@ -271,7 +273,7 @@ class ThematiqueController extends Controller
                     'is_valid' => $request->file('media_file') ? $request->file('media_file')->isValid() : 'no file',
                     'error_code' => $request->file('media_file') ? $request->file('media_file')->getError() : 'N/A'
                 ]);
-                return PackageControlleur::errorResponse('Erreur validation : '.$validator->errors(), 422, $validator->errors());
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, $validator->errors());
             }
 
             // On récupère les données sauf les médias pour l'instant
@@ -321,10 +323,10 @@ class ThematiqueController extends Controller
 
             $thematique->update($data);
 
-            return PackageControlleur::successResponse($thematique, 'Mise à jour réussie');
+            return ResponseHelper::successResponse($thematique, 'Mise à jour réussie');
 
         } catch (\Throwable $th) {
-            return PackageControlleur::errorResponse('Erreur : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur : ' . $th->getMessage());
         }
     }
 
@@ -334,10 +336,17 @@ class ThematiqueController extends Controller
     public function destroy($id)
     {
         try {
+
+            // vérification des droits d'access
+            if(auth()->user()->type_id < 3) {
+                Log::error('Accès non autorisé. Vous ne pouvez pas supprimer une thématique.');
+                return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas supprimer une thématique.', 403);
+            }
+
             $thematique = Thematique::find($id);
             if (!$thematique) {
                 \Log::error('Thématique non trouvée.');
-                return PackageControlleur::errorResponse('Thématique non trouvée.', 404, []);
+                return ResponseHelper::errorResponse('Thématique non trouvée.', 404, []);
             }
 
             // Supprimer le fichier média associé si c'est un fichier local
@@ -350,19 +359,27 @@ class ThematiqueController extends Controller
                 Thematique::where('parent_id', $thematique->id)->delete(); // Soft delete des sous-thèmes
             }
 
-            Question::where('thematique_id', $thematique->id)->delete();
+            // supprimer les questions badges et les parties associés à cette thématique
             Badge::where('thematique_id', $thematique->id)->delete();
+            Partie::where('thematique_id', $thematique->id)->delete();
+
+            // On récupère les questions et on les supprime via le contrôleur pour déclencher le nettoyage audio
+            $questions = Question::where('thematique_id', $thematique->id)->get();
+            $questionController = app(\App\Http\Controllers\QuestionController::class);
+            foreach ($questions as $question) {
+                $questionController->destroy($question->id);
+            }
 
             $thematique->delete(); // Soft delete de la thématique principale
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 [],
                 'Thématique supprimée avec succès.',
                 ['count' => 0]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur lors de la suppression de la thématique.', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la suppression de la thématique'.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la suppression de la thématique'.$th->getMessage());
         }
     }
 

@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Badge;
-use App\Models\badge_users;
+use App\Models\BadgeUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 
 class BadgeUsersController extends Controller
 {
@@ -20,12 +20,12 @@ class BadgeUsersController extends Controller
     public function index($id = null)
     {
         if (!auth()->user()) {
-            return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+            return ResponseHelper::errorResponse('Accès non autorisé.', 403);
         }
 
         $user = auth()->user();
 
-        // Ajout des colonnes essentielles de badge_users (solution du problème précédent)
+        // Ajout des colonnes essentielles de BadgeUser (solution du problème précédent)
         $selectColumns = [
             'id',
             'user_id',
@@ -45,7 +45,7 @@ class BadgeUsersController extends Controller
             }
         ];
 
-        $query = badge_users::select($selectColumns)->with($relations);
+        $query = BadgeUser::select($selectColumns)->with($relations);
 
         if (isset($id) && !empty($id)) {
             $badgeUsers = $query
@@ -59,7 +59,7 @@ class BadgeUsersController extends Controller
             ->get();
         }
 
-        return PackageControlleur::successResponse(
+        return ResponseHelper::successResponse(
             $badgeUsers,
             'Données de badges récupérés avec succès',
             ['count' => $badgeUsers->count()]

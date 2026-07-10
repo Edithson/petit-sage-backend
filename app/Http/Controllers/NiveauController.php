@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Models\Thematique;
 use App\Models\User;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 
 class NiveauController extends Controller
 {
@@ -22,17 +22,17 @@ class NiveauController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $niveaux = Niveau::orderBy('numero', 'asc')->get();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $niveaux,
                 'Liste des niveaux récupérée avec succès',
                 ['count' => $niveaux->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération niveaux', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des niveaux : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des niveaux : ' . $th->getMessage());
         }
 
     }
@@ -48,7 +48,7 @@ class NiveauController extends Controller
         try {
             // Seuls les administrateurs (type_id > 1) peuvent créer des niveaux
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
 
             $validator = Validator::make($request->all(), [
@@ -57,7 +57,7 @@ class NiveauController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation : ' . $validator->errors(), 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             // Trouver le numéro de niveau le plus élevé parmi les niveaux actifs
@@ -68,7 +68,7 @@ class NiveauController extends Controller
             $existingNiveau = Niveau::where('numero', $newNumero)->first();
             if ($existingNiveau) {
                  // Ceci ne devrait pas arriver avec max('numero'), mais par sécurité
-                 return PackageControlleur::errorResponse('Un niveau actif avec le numéro ' . $newNumero . ' existe déjà. Impossible de créer un doublon.', 409, ['numero_conflit' => $newNumero]);
+                 return ResponseHelper::errorResponse('Un niveau actif avec le numéro ' . $newNumero . ' existe déjà. Impossible de créer un doublon.', 409, ['numero_conflit' => $newNumero]);
             }
 
             $niveau = new Niveau();
@@ -77,7 +77,7 @@ class NiveauController extends Controller
             $niveau->description = $request->description;
             $niveau->save();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $niveau,
                 'Niveau créé avec succès',
                 ['count' => 1],
@@ -85,7 +85,7 @@ class NiveauController extends Controller
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur création niveaux', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la création du niveau : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la création du niveau : ' . $th->getMessage());
         }
     }
 
@@ -100,11 +100,11 @@ class NiveauController extends Controller
         try {
             // Seuls les administrateurs (type_id > 1) peuvent accéder à cette fonction
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $niveau = Niveau::withTrashed()->find($id);
             if (!$niveau) {
-                return PackageControlleur::errorResponse('Niveau non trouvé.', 404);
+                return ResponseHelper::errorResponse('Niveau non trouvé.', 404);
             }
             // selection des utilisateurs de ce niveau
             $utilisateurs = User::where('niveau_id', $niveau->id)->get();
@@ -115,14 +115,14 @@ class NiveauController extends Controller
                 'utilisateurs' => $utilisateurs,
                 'thematiques' => $thematiques,
             ];
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Niveau récupéré avec succès',
                 ['count' => count($data)]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération niveaux', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération du niveau : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération du niveau : '.$th->getMessage());
         }
     }
 
@@ -137,11 +137,11 @@ class NiveauController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $niveau = Niveau::find($id);
             if (!$niveau) {
-                return PackageControlleur::errorResponse('Niveau non trouvé.', 404);
+                return ResponseHelper::errorResponse('Niveau non trouvé.', 404);
             }
 
             $validator = Validator::make($request->all(), [
@@ -149,21 +149,21 @@ class NiveauController extends Controller
                 'description' => 'nullable|string|max:1000',
             ]);
             if ($validator->fails()) {
-                return PackageControlleur::errorResponse('Erreurs de validation', 422, ['errors' => $validator->errors()]);
+                return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422, ['errors' => $validator->errors()]);
             }
 
             $niveau->nom = $request->nom;
             $niveau->description = $request->description;
             $niveau->save();
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $niveau,
                 'Niveau mis à jour avec succès.',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur de mise à jour de niveau', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur de mise à jour de niveau : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur de mise à jour de niveau : '.$th->getMessage());
         }
     }
 
@@ -177,18 +177,18 @@ class NiveauController extends Controller
     {
         try {
             if (auth()->user()->type_id < 2) {
-                return PackageControlleur::errorResponse('Accès non autorisé.', 403);
+                return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
 
             $niveau = Niveau::find($id); // Cherche seulement les niveaux actifs
 
             if (!$niveau) {
-                return PackageControlleur::errorResponse('Niveau non trouvé ou déjà suspendu.', 404);
+                return ResponseHelper::errorResponse('Niveau non trouvé ou déjà suspendu.', 404);
             }
 
             //vérifier si il s'agit du niveau 1
             if ($niveau->numero == 1) {
-                return PackageControlleur::errorResponse('Impossible de supprimer le niveau de base.', 409);
+                return ResponseHelper::errorResponse('Impossible de supprimer le niveau de base.', 409);
             }
 
             // Faire dessendre (de moins 1) les niveaux supérieurs au niveau sur le point d'être supprimé
@@ -206,14 +206,14 @@ class NiveauController extends Controller
             ]);
 
             $niveau->delete();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 null,
                 'Niveau suspendu avec succès.',
                 ['count' => 1]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur de suppression de niveau', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur de suppression de niveau : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur de suppression de niveau : '.$th->getMessage());
         }
     }
 

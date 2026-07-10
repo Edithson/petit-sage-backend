@@ -11,7 +11,7 @@ use App\Models\Thematique;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 use App\Models\User; // Pour accéder au modèle User
 use Illuminate\Support\Facades\DB; // Pour les agrégations de score
 
@@ -30,7 +30,7 @@ class EvaluationController extends Controller
 
             if (!$user) {
                 \Log::error('Token invalide');
-                return PackageControlleur::errorResponse('Token invalide', 401);
+                return ResponseHelper::errorResponse('Token invalide', 401);
             }
 
             $validator = Validator::make($request->all(), [
@@ -45,7 +45,7 @@ class EvaluationController extends Controller
 
             if ($validator->fails()) {
                 \Log::error('Erreurs de validation', ['errors' => $validator->errors(), 'request_data' => $request->all()]);
-                return PackageControlleur::errorResponse('Erreurs de validation : '.$validator->errors(), 422);
+                return ResponseHelper::errorResponse('Erreurs de validation : '.$validator->errors()->first(), 422);
             }
 
             $partie = Partie::find($request->partie_id);
@@ -116,7 +116,7 @@ class EvaluationController extends Controller
                 'badge' => $earnedBadges,
             ];
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Partie sauvegardée avec succès',
                 ['count' => count($earnedBadges)]
@@ -127,7 +127,7 @@ class EvaluationController extends Controller
                 'error' => $th->getMessage(),
                 'trace' => $th->getTraceAsString()
             ]);
-            return PackageControlleur::errorResponse(
+            return ResponseHelper::errorResponse(
                 'Erreur lors de d\'enregistrement des données : '.$th->getMessage(),
                 500
             );
@@ -204,7 +204,7 @@ class EvaluationController extends Controller
      */
     public function index()
     {
-        $evaluations = Evaluation::with(['user:id,name', 'thematique:id,name'])->get();
+        $evaluations = Evaluation::with(['user:id,name', 'thematique:id,name'])->paginate(15);
         return response()->json($evaluations);
     }
 
@@ -214,7 +214,7 @@ class EvaluationController extends Controller
             $partie = Partie::find($id);
             if (!$partie) {
                 \Log::warning("Tentative d'accès à une partie inexistante: ID " . $id);
-                return PackageControlleur::errorResponse('Partie non trouvée', 404);
+                return ResponseHelper::errorResponse('Partie non trouvée', 404);
             }
             $sousThematique = Thematique::find($partie->thematique_id);
             $thematique = [];
@@ -229,25 +229,18 @@ class EvaluationController extends Controller
                 'sousThematique' => $sousThematique,
                 'questions' => $questions
             ];
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $data,
                 'Données d\'évaluation récupérées avec succès',
                 ['count' => count($data)]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération des données d\'écaluation : '.$th->getMessage(), ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des des données d\'écaluation : '.$th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des des données d\'écaluation : '.$th->getMessage());
         }
     }
 
     public function getEvalUser($id = null){
-        return true;
-        // if (!auth()->user()) {
-        //     return PackageControlleur::errorResponse('Accès non autorisé.', 403);
-        // }
-        // $user = auth()->user();
-        // return($user);
-
         try {
             if (isset($id) && !empty($id)) {
                 $evaluations = Evaluation::with(['partie', 'thematique'])
@@ -257,10 +250,12 @@ class EvaluationController extends Controller
             }else{
                 $evaluations = Evaluation::with(['partie', 'thematique'])
                     // ->where('user_id', $user->id)
+                    ->latest()
+                    ->limit(100)
                     ->get();
             }
 
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $evaluations,
                 'Données d\'évaluation récupérés avec succès',
                 ['count' => $evaluations->count()]
@@ -270,7 +265,7 @@ class EvaluationController extends Controller
                 'error' => $th->getMessage(),
                 'trace' => $th->getTraceAsString()
             ]);
-            return PackageControlleur::errorResponse(
+            return ResponseHelper::errorResponse(
                 'Erreur lors de la sélection des données d\'évaluation : ' . $th->getMessage(),
                 500
             );

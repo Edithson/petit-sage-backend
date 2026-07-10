@@ -1,61 +1,150 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🦉 Petit Sage - Backend API (Laravel 12)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Bienvenue sur le dépôt backend de **Petit Sage**, une application éducative gamifiée intégrant des quiz interactifs et des mécaniques ludiques (niveaux, thématiques, parties, badges, et évaluations) pour la transmission de valeurs sociales auprès des jeunes apprenants.
 
-## About Laravel
+Le backend est développé sous le framework **Laravel 12** avec **PHP 8.2+**.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🛠️ Stack Technique & Dépendances
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+*   **Framework Principal :** Laravel `^12.0`
+*   **Version PHP :** `^8.2`
+*   **Gestionnaire de Base de Données :** MySQL / SQLite
+*   **Authentification :** Laravel Sanctum `^4.0` (sessions SPA d'état / Cookies)
+*   **Services tiers intégrés :**
+    *   **ElevenLabs API :** Synthèse vocale (TTS) avec mise en cache locale des fichiers audio (`ElevenLabsController`).
+    *   **Sentry :** Suivi et monitoring des erreurs en temps réel (`sentry-laravel` `^4.22`).
+*   **Dépendances non-utilisées / Stubs :**
+    *   `google/cloud-text-to-speech` (installé mais non-utilisé dans les controleurs actifs).
+    *   `openai-php/client` (installé pour de futures intégrations mais non-utilisé).
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 📂 Architecture Générale du Projet
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Le projet suit l'architecture standard MVC (Modèle-Vue-Contrôleur) de Laravel, avec quelques adaptations pour un fonctionnement en mode API REST :
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```text
+app/
+├── Http/
+│   ├── Controllers/       # Traitement des requêtes HTTP & Réponses API
+│   │   ├── AuthController.php        # Authentification utilisateur (Sanctum), Email Verification
+│   │   ├── DashboardController.php   # KPI et agrégations statistiques admin
+│   │   ├── ElevenLabsController.php  # Synthèse vocale de textes via ElevenLabs
+│   │   ├── EvaluationController.php  # Enregistrement des sessions de jeu, scores & dessins
+│   │   └── ...
+│   └── Middleware/        # Middlewares (EnsureFrontendRequestsAreStateful prépendu pour Sanctum)
+├── Models/                # Entités de base de données et relations Eloquent
+│   ├── User.php           # Compte principal (Admin, Parent, Apprenti)
+│   ├── Profil.php         # Sous-compte joueur/enfant rattaché à un utilisateur
+│   ├── Niveau.php         # Niveaux scolaires/d'âge (ex: 3-7 ans, 8-12 ans, etc.)
+│   ├── Thematique.php     # Thématiques de jeu (réflexive : Thème Principal et Sous-thèmes)
+│   ├── Partie.php         # Chapitre/Séquence au sein d'une thématique
+│   ├── Question.php       # Question avec choix multiples/uniques en format JSON
+│   ├── Evaluation.php     # Session d'évaluation réalisée (Score, dessin, temps, erreurs)
+│   ├── Badge.php          # Badge déblocable selon un score minimum dans une thématique
+│   └── badge_users.php    # Modèle Pivot d'attribution des badges aux utilisateurs/profils
+├── Services/              # Services métiers découplés
+│   ├── AudioManageService.php # Gestion physique et suppression sécurisée des fichiers vocaux
+│   └── MailService.php        # Service d'envoi d'emails asynchrones (via Queue)
+```
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🗄️ Structure & Relations de Base de Données
 
-### Premium Partners
+Le schéma de base de données est structuré pour gérer l'arborescence du jeu et la progression individuelle :
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```mermaid
+erDiagram
+    USERS ||--o{ PROFILS : "possede"
+    USERS ||--o{ EVALUATIONS : "effectue"
+    PROFILS ||--o{ EVALUATIONS : "associe_a"
+    NIVEAUX ||--o{ USERS : "a_pour_niveau"
+    NIVEAUX ||--o{ PROFILS : "a_pour_niveau"
+    NIVEAUX ||--o{ THEMATIQUES : "contient"
+    THEMATIQUES ||--o{ THEMATIQUES : "a_pour_parent (reflexif)"
+    THEMATIQUES ||--o{ PARTIES : "contient"
+    THEMATIQUES ||--o{ QUESTIONS : "contient"
+    THEMATIQUES ||--o{ BADGES : "possede"
+    PARTIES ||--o{ QUESTIONS : "contient"
+    PARTIES ||--o{ EVALUATIONS : "concerne"
+    USERS }o--o{ BADGES : "debloque (badge_users)"
+    PROFILS }o--o{ BADGES : "debloque (badge_users)"
+```
 
-## Contributing
+### Description des Modèles Principaux :
+*   **User (Utilisateur) :** Compte parent/administrateur. Rattaché à un type (Apprenti, Parent, Admin).
+*   **Profil (Profil Joueur) :** Sous-compte pour enfant, permettant à plusieurs joueurs de progresser de manière isolée sur un même appareil.
+*   **Niveau :** Tranches d'âges associées aux thématiques de jeu (ex : Niveau 1 pour 3 à 7 ans).
+*   **Thematique :** Sujets généraux divisés en sous-thématiques (ex : Solidarité, Respect).
+*   **Partie :** Série ordonnée de questions associée à un sous-thème.
+*   **Question :** Structure flexible contenant l'énoncé (texte, URL média) et un champ JSON `reponses` contenant les choix avec leur statut d'exactitude.
+*   **Evaluation :** Historique des sessions de quiz. Contient le score final, le temps passé, les données de canvas de dessin sauvegardées sous format PNG/JPG, et la liste des questions échouées.
+*   **Badge :** Récompense débloquée pour un profil ou utilisateur lorsque son score cumulatif sur une thématique atteint le seuil requis (`nbr_min_point`).
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## ⚡ Installation et Lancement Local
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Suivez ces étapes pour installer et exécuter l'environnement de développement :
 
-## Security Vulnerabilities
+### 1. Prérequis
+*   PHP `>= 8.2`
+*   Composer
+*   NodeJS & NPM
+*   Serveur MySQL ou base SQLite
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 2. Cloner et installer les dépendances
+```bash
+composer install
+npm install
+```
 
-## License
+### 3. Configurer l'environnement
+Copiez le fichier d'exemple et générez la clé de sécurité de l'application :
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+Éditez ensuite le fichier `.env` pour y renseigner vos identifiants de base de données et vos clés d'API (ElevenLabs, Sentry, SMTP Mail).
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Migrer et initialiser la base de données
+Vous pouvez exécuter les migrations et injecter les données de démonstration via :
+```bash
+php artisan migrate --seed
+```
+*Note : Un fichier dump SQL complet est également disponible à la racine sous le nom `ludophylosophie.sql` pour un import direct si nécessaire.*
+
+### 5. Configurer le stockage local
+Pour rendre les images de dessins et les fichiers audio synthétisés accessibles par le front-end, créez le lien symbolique du dossier public :
+```bash
+php artisan storage:link
+```
+
+### 6. Lancer le serveur de développement
+Vous pouvez utiliser la commande Composer personnalisée définie dans `composer.json` pour lancer simultanément le serveur de développement, l'écouteur de file d'attente (pour l'envoi d'emails) et le bundle de ressources :
+```bash
+composer dev
+```
+*Cette commande exécute sous le capot `php artisan serve`, `php artisan queue:listen --tries=1` et `npm run dev`.*
+
+---
+
+## ⚠️ Anomalies & Points d'Attention Identifiés
+
+Pendant l'analyse de la codebase, plusieurs dysfonctionnements et opportunités d'amélioration ont été détectés :
+
+1.  **`TTSController` manquant (Erreur Critique Route) :**
+    Le fichier `routes/api.php` importe et appelle `TTSController` à la ligne 29 (`Route::post('/tts', [TTSController::class, 'generate']);`). Cependant, aucun fichier `TTSController.php` n'existe dans `app/Http/Controllers/`. Appeler cette route provoquera une erreur fatale. Si vous utilisez uniquement ElevenLabs, cette route doit être retirée ou le contrôleur doit être créé pour supporter Google TTS.
+2.  **Bug de validation dans `ContactController@store` :**
+    À la ligne 41 de `ContactController.php`, le code vérifie la validation via `if ($request->fails())`. Cependant, `$request` est une instance de `Request` de Laravel et ne possède pas la méthode `fails()`. Cela génère une exception `BadMethodCallException` lors de l'enregistrement réussi de formulaires de contact. La validation native de Laravel lègue déjà cette gestion via des exceptions automatisées, ce bloc `if` doit donc être supprimé ou corrigé avec un validateur séparé.
+3.  **Bouchon de débogage dans `EvaluationController@getEvalUser` :**
+    La méthode `getEvalUser()` à la ligne 243 de `EvaluationController.php` commence directement par `return true;`, empêchant toute sélection et renvoi de données réelles d'évaluation d'un compte ou d'un profil. Le code de récupération SQL est ainsi désactivé.
+4.  **Nom de classe non-standard `badge_users` :**
+    La classe de modèle associée à la table pivot s'appelle `badge_users.php` et utilise un nom de classe en minuscules et snake_case. Il est recommandé de la renommer en `BadgeUser` (PascalCase) selon les conventions PSR-12 et standards de Laravel.
+5.  **Importation manquante dans `badge_users.php` :**
+    À la ligne 28 de `app/Models/badge_users.php`, le type de retour de la relation `profil()` est défini sur `: BelongsTo`, mais l'import de la classe `use Illuminate\Database\Eloquent\Relations\BelongsTo;` est absent en haut du fichier, ce qui lèvera une erreur d'interprétation lors de son appel.
+6.  **Dépendances inactives :**
+    Les librairies `openai-php/client` et `google/cloud-text-to-speech` sont installées via `composer.json` mais ne sont importées nulle part dans la logique active de l'application.

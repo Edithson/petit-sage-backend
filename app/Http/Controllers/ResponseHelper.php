@@ -1,12 +1,14 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
-class PackageControlleur extends Controller{
-
+class ResponseHelper extends Controller
+{
     public static function successResponse($data, $message, $meta = [], $status = 200)
     {
         return response()->json([
@@ -54,5 +56,4 @@ class PackageControlleur extends Controller{
             return null;
         }
     }
-
 }

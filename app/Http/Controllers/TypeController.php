@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTypeRequest;
 use App\Http\Requests\UpdateTypeRequest;
 use App\Models\Type;
-use App\Http\Controllers\PackageControlleur;
+use App\Http\Controllers\ResponseHelper;
 
 class TypeController extends Controller
 {
@@ -16,14 +16,14 @@ class TypeController extends Controller
     {
         try {
             $types = Type::all();
-            return PackageControlleur::successResponse(
+            return ResponseHelper::successResponse(
                 $types,
                 'Liste des types récupérée avec succès',
                 ['count' => $types->count()]
             );
         } catch (\Throwable $th) {
             \Log::error('Erreur récupération types', ['error' => $th->getMessage()]);
-            return PackageControlleur::errorResponse('Erreur lors de la récupération des types : ' . $th->getMessage());
+            return ResponseHelper::errorResponse('Erreur lors de la récupération des types : ' . $th->getMessage());
         }
     }
 
