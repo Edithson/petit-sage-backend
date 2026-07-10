@@ -127,7 +127,7 @@ class ProfilController extends Controller
                 return ResponseHelper::errorResponse('Non authentifié.', 401);
             }
 
-            if ($id != null) {
+            if (isset($id) && !empty($id) && $id !== null) {
                 $profil = Profil::with(['user:id,email,name', 'niveau:id,numero,nom', 'badges:id,titre,emoji'])
                     ->where('id', $id)
                     ->first();
@@ -156,18 +156,17 @@ class ProfilController extends Controller
                     $profil->password = "";
                 }
 
-                // Récupération des évaluations
                 $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', $profil->user_id)
                     ->where('profil_id', $profil->id)
-                    ->orderBy('created_at', 'desc')
+                    ->latest()
                     ->limit(10) // Limiter à 10 évaluations récentes
                     ->get();
             } else {
                 $evaluations = Evaluation::with(['partie:id,name,numero', 'thematique:id,name,parent_id'])
                     ->where('user_id', auth()->user()->id)
                     ->where('profil_id', null)
-                    ->orderBy('created_at', 'desc')
+                    ->latest()
                     ->limit(10)
                     ->get();
             }

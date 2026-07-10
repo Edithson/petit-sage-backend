@@ -52,16 +52,17 @@ class UserController extends Controller
                 return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $user = User::withTrashed()->with([
-                'type',
-                'niveau',
-                'questions',
+                'type:id,name',
+                'niveau:id,numero,nom',
+                'questions:id,intitule_text,intitule_media_description,thematique_id',
                 'badges' => function ($q) {
                     $q->wherePivot('profil_id', null);
                 },
                 'evaluations' => function ($q) {
-                    $q->whereNull('profil_id')->with(['partie', 'thematique']);
+                    $q->whereNull('profil_id')->with(['partie', 'thematique:id,name,parent_id'])->latest()->limit(10);
                 }
-            ])->find($id); // Inclure les utilisateurs suspendus
+            ])
+            ->find($id); // Inclure les utilisateurs suspendus
 
             if (!$user) {
                 return ResponseHelper::errorResponse('Utilisateur non trouvé.', 404);

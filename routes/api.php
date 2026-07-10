@@ -118,7 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/badgeusers/detach', [BadgeUsersController::class, 'detach']);
 
     // les profils
-    Route::get('/profil/{id_user?}', [ProfilController::class, 'get_profils_user']);
+    Route::get('/profil/{id_user?}', [ProfilController::class, 'get_profils_user'])->whereNumber('id_user');
     Route::post('/profil', [ProfilController::class, 'store']);
     Route::get('/profil/show/{id?}', [ProfilController::class, 'show']);
     Route::get('/profil/edit/{id}', [ProfilController::class, 'edit']);
