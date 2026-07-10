@@ -4,9 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Niveau;
-use App\Models\Question;
-use App\Models\Evaluation;
-use App\Models\BadgeUser;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\PasswordResetToken;
@@ -14,7 +11,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\ResponseHelper;
-use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -170,7 +166,7 @@ class UserController extends Controller
                 return ResponseHelper::errorResponse('Utilisateur non trouvé!.', 404);
             }
             // Un utilisateur ne peut modifier que son propre profil, un admin peut modifier n'importe quel profil
-            if (auth()->id() != $user->id && auth()->user()->type_id < 2) {
+            if (auth()->id() != $user->id && auth()->user()->type_id < 4) {
                 return ResponseHelper::errorResponse('Accès non autorisé.', 403);
             }
             $validator = Validator::make($request->all(), [
@@ -180,7 +176,7 @@ class UserController extends Controller
                 'age' => 'nullable|integer|min:0|max:150',
                 'telephone' => 'nullable|string|max:20',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
-                'type_id' => 'required|integer|in:1,2,3', // Type d'utilisateur, seuls les admins peuvent changer cela
+                'type_id' => 'required|integer|in:1,2,3,4', // Type d'utilisateur, seuls les admins peuvent changer cela
                 'profil' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
             if ($validator->fails()) {
@@ -214,8 +210,8 @@ class UserController extends Controller
             $user->telephone = ($request->telephone && $request->telephone !== '') ? $request->telephone : null;
             $user->niveau_id = ($request->niveau_id && $request->niveau_id !== '') ? $request->niveau_id : null;
 
-            // Seuls les admins peuvent changer le type_id d'un utilisateur
-            if (auth()->user()->type_id >= 2) {
+            // Seuls les super admins peuvent changer le type_id d'un utilisateur
+            if (auth()->user()->type_id > 3) {
                 $user->type_id = $request->type_id;
             }
 
@@ -409,7 +405,7 @@ class UserController extends Controller
     public function suspendAccount(Request $request, $id)
     {
         // Seuls les administrateurs ou l'utilisateur lui-même peuvent suspendre
-        if (auth()->user()->type_id < 2 && auth()->id() != $id) {
+        if (auth()->user()->type_id < 3 && auth()->id() != $id) {
             \Log::error('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.');
             return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas suspendre un super administrateur.', 403);
         }
@@ -464,8 +460,8 @@ class UserController extends Controller
      */
     public function restore($id)
     {
-        // Seuls les administrateurs (type_id > 1) peuvent restaurer des utilisateurs
-        if (auth()->user()->type_id < 2) {
+        // Seuls les administrateurs (type_id > 2) peuvent restaurer des utilisateurs
+        if (auth()->user()->type_id < 3) {
             \Log::error('Accès non autorisé. Vous ne pouvez pas restaurer un super administrateur.');
             return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas restaurer un super administrateur.', 403);
         }

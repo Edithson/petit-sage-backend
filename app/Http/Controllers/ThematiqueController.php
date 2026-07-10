@@ -12,6 +12,7 @@ use App\Models\Question;
 use App\Models\Thematique;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -335,6 +336,13 @@ class ThematiqueController extends Controller
     public function destroy($id)
     {
         try {
+
+            // vérification des droits d'access
+            if(auth()->user()->type_id < 3) {
+                Log::error('Accès non autorisé. Vous ne pouvez pas supprimer une thématique.');
+                return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas supprimer une thématique.', 403);
+            }
+
             $thematique = Thematique::find($id);
             if (!$thematique) {
                 \Log::error('Thématique non trouvée.');

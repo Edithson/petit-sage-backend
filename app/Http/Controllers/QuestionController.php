@@ -39,6 +39,12 @@ class QuestionController extends Controller
      */
     public function index(Request $request)
     {
+        // vérification des droits d'access
+        if(auth()->user()->type_id < 2) {
+            Log::error('Accès non autorisé. Vous n\'avez pas le droit d\'etre ici!');
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous n\'avez pas le droit d\'etre ici!', 403);
+        }
+
         try {
             $query = Question::select([
                 'id', 
@@ -104,6 +110,12 @@ class QuestionController extends Controller
             return ResponseHelper::errorResponse('Token invalide', 401);
         }
 
+        // vérification des droits d'access
+        if(auth()->user()->type_id < 3) {
+            Log::error('Accès non autorisé. Vous ne pouvez pas ajouter une question.');
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas ajouter une question.', 403);
+        }
+
         try {
             $question = $this->questionService->createQuestion($request->validated(), $request);
 
@@ -151,6 +163,12 @@ class QuestionController extends Controller
      */
     public function update(UpdateQuestionRequest $request, $id)
     {
+        // vérification des droits d'access
+        if(auth()->user()->type_id < 3) {
+            Log::error('Accès non autorisé. Vous ne pouvez pas modifier une question.');
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas modifier une question.', 403);
+        }
+
         $question = Question::find($id);
         if (!$question) {
             Log::error('Question non trouvée.');
@@ -173,6 +191,12 @@ class QuestionController extends Controller
 
     public function reorder(Request $request)
     {
+        // vérification des droits d'access
+        if(auth()->user()->type_id < 3) {
+            Log::error('Accès non autorisé. Vous ne pouvez pas modifier l\'ordre des questions.');
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas modifier l\'ordre des questions.', 403);
+        }
+
         try {
             $questionsData = $request->validate([
                 '*.id' => 'required|integer|exists:questions,id',
@@ -208,6 +232,12 @@ class QuestionController extends Controller
      */
     public function destroy($id)
     {
+        // vérification des droits d'access
+        if(auth()->user()->type_id < 3) {
+            Log::error('Accès non autorisé. Vous ne pouvez pas supprimer une question.');
+            return ResponseHelper::errorResponse('Accès non autorisé. Vous ne pouvez pas supprimer une question.', 403);
+        }
+
         $question = Question::find($id);
 
         if (!$question) {
