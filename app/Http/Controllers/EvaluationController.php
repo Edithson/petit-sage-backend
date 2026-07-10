@@ -243,15 +243,17 @@ class EvaluationController extends Controller
     public function getEvalUser($id = null){
         try {
             if (isset($id) && !empty($id)) {
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie', 'thematique:id,name,parent_id'])
                     // ->where('user_id', $user->id)
                     ->where('profil_id', $id)
+                    ->latest()
+                    ->limit(5)
                     ->get();
             }else{
-                $evaluations = Evaluation::with(['partie', 'thematique'])
+                $evaluations = Evaluation::with(['partie', 'thematique:id,name,parent_id'])
                     // ->where('user_id', $user->id)
                     ->latest()
-                    ->limit(100)
+                    ->limit(20)
                     ->get();
             }
 
