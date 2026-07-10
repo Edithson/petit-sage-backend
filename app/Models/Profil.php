@@ -10,10 +10,21 @@ use App\Models\Niveau;
 use App\Models\User;
 use App\Models\Evaluation;
 
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+
 class Profil extends Model
 {
     /** @use HasFactory<\Database\Factories\ProfilFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
 
     protected $guarded = [];
 

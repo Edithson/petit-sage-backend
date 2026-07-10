@@ -9,11 +9,21 @@ use App\Models\Thematique;
 use App\Models\User;
 use App\Models\Partie;
 use App\Models\Traits\AuditableByUsers;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Question extends Model
 {
     /** @use HasFactory<\Database\Factories\QuestionFactory> */
-    use HasFactory, SoftDeletes, AuditableByUsers;
+    use HasFactory, SoftDeletes, AuditableByUsers, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
 
     protected $guarded = [];
 

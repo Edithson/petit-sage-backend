@@ -18,6 +18,7 @@ use App\Http\Controllers\NiveauController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ActivityLogController;
 
 Route::get('/evaluations/user/{id?}', [EvaluationController::class, 'getEvalUser']); //reccuperer les données d'évaluation d'un compte utilisateur ou d'un sous compte
 
@@ -149,4 +150,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/types', [TypeController::class, 'index']);
 
     Route::get('/evaluations/startEvaluation/{id}', [EvaluationController::class, 'startEvaluation']); // Pour démarrer une évaluation
+
+    // Routes d'administration pour les logs d'activité Spatie
+    Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
+    Route::get('/activity-logs/me', [ActivityLogController::class, 'me']);
 });
