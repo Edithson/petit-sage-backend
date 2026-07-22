@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'voice' => env('GEMINI_AUDIO_VOICE', 'Kora'),
+        'url' => 'https://generativelanguage.googleapis.com/v1beta/models/',
+    ],
+
 ];

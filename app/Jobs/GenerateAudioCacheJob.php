@@ -16,67 +16,154 @@ class GenerateAudioCacheJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $text;
+    protected $theme;
+    protected $tone;
 
     /**
-     * Create a new job instance.
+     * Crée une nouvelle instance de Job enrichie avec le contexte.
      */
-    public function __construct(string $text)
+    public function __construct(string $text, string $theme = 'Philosophie générale', string $tone = 'Empathique et naturel')
     {
         $this->text = $text;
+        $this->theme = $theme;
+        $this->tone = $tone;
     }
 
     /**
-     * Execute the job.
+     * Exécute le job.
      */
     public function handle(): void
     {
-        $fileName = md5($this->text) . '.mp3';
+        // Étape 1 : Le Hash prédictif intègre le style pour correspondre au contrôleur
+        // NB : extension .wav — Gemini TTS renvoie du PCM brut, pas un .mp3 (voir plus bas)
+        $fileName = md5($this->text . $this->theme . $this->tone) . '.wav';
         $filePath = 'audio/' . $fileName;
 
-        // Étape 1 : Si le fichier existe déjà, on stoppe le job pour économiser le quota API
+        // Si le fichier audio exact existe déjà, on stoppe pour économiser le quota
         if (Storage::disk('public')->exists($filePath)) {
             return;
         }
 
-        $apiKey = env('ELEVENLABS_API_KEY');
-        $voiceId = env('ELEVENLABS_VOICE_ID');
+        // Récupération des configurations propres à Google
+        $apiKey = config('services.gemini.key');
+        // "Kore" est le nom exact (liste des 30 voix Gemini) — vérifie aussi la valeur dans ton .env
+        $voiceName = config('services.gemini.voice', 'Kore');
+        $baseUrl = rtrim(config('services.gemini.url'), '/');
 
-        if (!$apiKey || !$voiceId) {
-            Log::warning('Clés ElevenLabs manquantes pour la pré-génération en arrière-plan.');
+        if (!$apiKey) {
+            Log::warning('Clé API Gemini manquante pour la pré-génération audio en arrière-plan.');
             return;
         }
 
-        // Étape 2 : Appel à l'API ElevenLabs
+        // Configuration du modèle cible (natif audio) et de l'endpoint
+        // IMPORTANT : seul un modèle "-tts-" natif renvoie de l'audio. "gemini-flash-latest"
+        // est un modèle de chat/raisonnement classique : il ignore responseModalities=AUDIO
+        // et répond en texte — c'est exactement ce que montrent tes logs.
+        $model = 'gemini-3.1-flash-tts-preview';
+        $endpoint = "{$baseUrl}/{$model}:generateContent?key={$apiKey}";
+
+        // Étape 2 : Construction du prompt. Un modèle TTS ne "discute" pas, il narre
+        // uniquement — inutile de lui dire de ne pas répondre. On garde une consigne de
+        // ton courte, puis un TRANSCRIPT clairement délimité (recommandation Google, pour
+        // éviter que le modèle ne lise les instructions à voix haute au lieu du texte).
+        $prompt = "Ton de narration : {$this->tone}, contexte [{$this->theme}].\n\nTRANSCRIPT (à lire mot à mot, sans aucun ajout) :\n{$this->text}";
+
         try {
             $client = new Client();
-            $response = $client->post("https://api.elevenlabs.io/v1/text-to-speech/{$voiceId}", [
+            $response = $client->post($endpoint, [
                 'headers' => [
-                    'Accept' => 'audio/mpeg',
                     'Content-Type' => 'application/json',
-                    'xi-api-key' => $apiKey,
                 ],
                 'json' => [
-                    'text' => $this->text,
-                    'model_id' => 'eleven_multilingual_v2',
-                    'voice_settings' => [
-                        'stability' => 0.5,
-                        'similarity_boost' => 0.5,
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
                     ],
-                ],
-                'stream' => true,
+                    'generationConfig' => [
+                        'responseModalities' => ['AUDIO'], // Exige un retour audio
+                        'speechConfig' => [
+                            'voiceConfig' => [
+                                'prebuiltVoiceConfig' => [
+                                    'voiceName' => $voiceName
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
             ]);
 
-            // Sauvegarde du fichier audio généré
-            Storage::disk('public')->put($filePath, $response->getBody());
+            $responseData = json_decode($response->getBody()->getContents(), true);
+
+            // 1. Extraction robuste du flux audio (parcours dynamique du tableau 'parts')
+            $base64Audio = null;
+            if (isset($responseData['candidates'][0]['content']['parts'])) {
+                foreach ($responseData['candidates'][0]['content']['parts'] as $part) {
+                    if (isset($part['inlineData']['data'])) {
+                        $base64Audio = $part['inlineData']['data'];
+                        break;
+                    } elseif (isset($part['inline_data']['data'])) {
+                        $base64Audio = $part['inline_data']['data'];
+                        break;
+                    }
+                }
+            }
+
+            // 2. Si le flux audio est introuvable
+            if (!$base64Audio) {
+                // On logue la réponse JSON brute exacte renvoyée par Google pour inspecter sa structure
+                Log::error("Impossible d'extraire le flux audio Google AI Studio pour le texte: " . substr($this->text, 0, 30), [
+                    'google_response' => $responseData
+                ]);
+                
+                // On lève une exception pour que Laravel comprenne que le Job a ÉCHOUÉ !
+                throw new \Exception("Structure audio invalide dans la réponse Google AI Studio.");
+            }
+
+            // 3. Décodage : Gemini TTS renvoie du PCM brut (16 bits, mono, 24 kHz) — il faut
+            // lui ajouter un en-tête WAV avant de le stocker, sinon le fichier ne sera pas lisible.
+            $pcmData = base64_decode($base64Audio);
+            $wavData = $this->pcmToWav($pcmData);
+
+            Storage::disk('public')->put($filePath, $wavData);
             
-            Log::info("Audio généré et mis en cache avec succès pour: " . substr($this->text, 0, 30) . "...");
+            Log::info("Audio (Google AI) généré et mis en cache avec succès pour: " . substr($this->text, 0, 30) . "...");
 
         } catch (\Exception $e) {
-            Log::error('Erreur de pré-génération ElevenLabs (Job) pour le texte: ' . $this->text, ['error' => $e->getMessage()]);
+            Log::error('Erreur de pré-génération Google AI Studio (Job) pour le texte: ' . $this->text, ['error' => $e->getMessage()]);
             
-            // Optionnel : Relancer le job en cas d'échec de l'API (ex: timeout)
-            // $this->fail($e); 
+            // Relancer le job si c'est un problème temporaire de réseau ou de timeout API
+            $this->release(30); 
         }
+    }
+
+    /**
+     * Encapsule des données PCM brutes (retournées par Gemini TTS) dans un en-tête WAV
+     * standard, pour obtenir un fichier audio lisible par un lecteur classique.
+     */
+    private function pcmToWav(string $pcmData, int $sampleRate = 24000, int $channels = 1, int $bitsPerSample = 16): string
+    {
+        $byteRate = $sampleRate * $channels * intdiv($bitsPerSample, 8);
+        $blockAlign = $channels * intdiv($bitsPerSample, 8);
+        $dataSize = strlen($pcmData);
+
+        $header = 'RIFF'
+            . pack('V', 36 + $dataSize)
+            . 'WAVE'
+            . 'fmt '
+            . pack('V', 16)          // Taille du sous-bloc fmt (16 pour du PCM)
+            . pack('v', 1)           // AudioFormat = 1 (PCM non compressé)
+            . pack('v', $channels)
+            . pack('V', $sampleRate)
+            . pack('V', $byteRate)
+            . pack('v', $blockAlign)
+            . pack('v', $bitsPerSample)
+            . 'data'
+            . pack('V', $dataSize);
+
+        return $header . $pcmData;
     }
 
     /**
@@ -84,19 +171,11 @@ class GenerateAudioCacheJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        // 1. Loguer l'erreur avec un niveau de criticité élevé
-        \Illuminate\Support\Facades\Log::critical('Échec définitif de la génération audio ElevenLabs.', [
+        Log::critical('Échec définitif de la génération audio Google AI Studio (Ludo Philo).', [
             'texte' => $this->text,
+            'theme' => $this->theme,
+            'tonalite' => $this->tone,
             'erreur' => $exception->getMessage(),
         ]);
-
-        // 2. (Optionnel) Alerter l'administrateur
-        // Tu pourrais utiliser le système de notification de Laravel ici :
-        // Mail::to('admin@tonjeu.com')->send(new AudioGenerationFailedMail($this->text));
-
-        // 3. (Optionnel) Mettre à jour la base de données
-        // Si tu avais gardé l'ID de la question au lieu du texte, 
-        // tu pourrais marquer la question avec un statut "erreur_audio = true"
     }
-    
 }
