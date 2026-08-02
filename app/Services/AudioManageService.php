@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Storage;
 
 class AudioManageService
 {
+    // Variable
+    protected string $theme = 'Philosophie générale';
+    protected string $tone = 'Empathique et naturel';
     /**
      * Supprime l'audio s'il n'est utilisé par aucune autre Partie ou Question.
      */
@@ -36,7 +39,8 @@ class AudioManageService
 
         // 3. S'il n'est utilisé nulle part, on supprime physiquement
         if (!$isUsedInParties && !$isUsedInQuestions) {
-            $filePath = 'audio/' . md5($text) . '.mp3';
+            #$filePath = 'audio/' . md5($text) . '.mp3';
+            $filePath = 'audio/' . md5($text . $this->theme . $this->tone) . '.wav';
             if (Storage::disk('public')->exists($filePath)) {
                 Storage::disk('public')->delete($filePath);
             }

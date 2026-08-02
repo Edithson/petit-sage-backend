@@ -9,7 +9,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
 
 class GenerateAudioCacheJob implements ShouldQueue
@@ -19,14 +18,6 @@ class GenerateAudioCacheJob implements ShouldQueue
     protected $text;
     protected $theme;
     protected $tone;
-    protected $attemptTraceId;
-
-    /**
-     * Nombre de tentatives réelles autorisées avant échec définitif.
-     * Nécessaire pour que la rotation de clés ait un sens : sans un tries > 1,
-     * il n'y a jamais de seconde tentative pour essayer une autre clé.
-     */
-    public $tries = 3;
 
     /**
      * Crée une nouvelle instance de Job enrichie avec le contexte.
@@ -36,10 +27,6 @@ class GenerateAudioCacheJob implements ShouldQueue
         $this->text = $text;
         $this->theme = $theme;
         $this->tone = $tone;
-        // Identifiant stable pour cette série de tentatives : contrairement aux
-        // propriétés modifiées pendant handle(), celui-ci fait partie du payload
-        // sérialisé au moment du dispatch() et survit donc aux release().
-        $this->attemptTraceId = uniqid('audio_', true);
     }
 
     /**
@@ -58,20 +45,15 @@ class GenerateAudioCacheJob implements ShouldQueue
         }
 
         // Récupération des configurations propres à Google
+        $apiKey = config('services.gemini.key');
         // "Kore" est le nom exact (liste des 30 voix Gemini) — vérifie aussi la valeur dans ton .env
         $voiceName = config('services.gemini.voice', 'Kore');
         $baseUrl = rtrim(config('services.gemini.url'), '/');
 
-        // Rotation aléatoire entre plusieurs clés/projets Gemini, pour ne pas épuiser un
-        // seul quota. Sur retry, la clé qui vient d'échouer est exclue du tirage — voir
-        // excludeApiKey() plus bas.
-        $apiKeys = $this->getAvailableApiKeys();
-        if (empty($apiKeys)) {
-            Log::warning('Aucune clé API Gemini configurée pour la pré-génération audio en arrière-plan.');
+        if (!$apiKey) {
+            Log::warning('Clé API Gemini manquante pour la pré-génération audio en arrière-plan.');
             return;
         }
-        $apiKey = $this->pickApiKey($apiKeys);
-        Log::info("Génération audio via la clé Gemini {$this->maskApiKey($apiKey)} pour: " . substr($this->text, 0, 30));
 
         // Configuration du modèle cible (natif audio) et de l'endpoint
         // IMPORTANT : seul un modèle "-tts-" natif renvoie de l'audio. "gemini-flash-latest"
@@ -152,9 +134,6 @@ class GenerateAudioCacheJob implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Erreur de pré-génération Google AI Studio (Job) pour le texte: ' . $this->text, ['error' => $e->getMessage()]);
             
-            // On exclut cette clé de la prochaine tentative, qui en choisira une autre au hasard.
-            $this->excludeApiKey($apiKey);
-
             // Relancer le job si c'est un problème temporaire de réseau ou de timeout API
             $this->release(30); 
         }
@@ -185,59 +164,6 @@ class GenerateAudioCacheJob implements ShouldQueue
             . pack('V', $dataSize);
 
         return $header . $pcmData;
-    }
-
-    /**
-     * Retourne la liste des clés API Gemini configurées (rotation multi-projets).
-     */
-    private function getAvailableApiKeys(): array
-    {
-        $keys = config('services.gemini.keys', []);
-        return is_array($keys) ? array_values(array_filter($keys)) : [];
-    }
-
-    /**
-     * Choisit une clé au hasard parmi celles pas encore essayées dans cette série de
-     * tentatives (voir excludeApiKey ci-dessous), pour ne jamais retenter juste après
-     * la clé qui vient d'échouer.
-     */
-    private function pickApiKey(array $apiKeys): string
-    {
-        $excluded = Cache::get($this->excludedKeysCacheKey(), []);
-        $candidates = array_values(array_diff($apiKeys, $excluded));
-
-        // Si toutes les clés ont déjà échoué durant cette série de tentatives, on repart
-        // de la liste complète plutôt que de bloquer.
-        if (empty($candidates)) {
-            $candidates = $apiKeys;
-        }
-
-        return $candidates[array_rand($candidates)];
-    }
-
-    /**
-     * Marque une clé comme ayant échoué pour cette série de tentatives (survit au
-     * release() car stockée en dehors de l'objet Job, contrairement à une simple
-     * propriété).
-     */
-    private function excludeApiKey(string $apiKey): void
-    {
-        $excluded = Cache::get($this->excludedKeysCacheKey(), []);
-        $excluded[] = $apiKey;
-        Cache::put($this->excludedKeysCacheKey(), array_values(array_unique($excluded)), now()->addMinutes(5));
-    }
-
-    private function excludedKeysCacheKey(): string
-    {
-        return "gemini_tts_excluded_keys_{$this->attemptTraceId}";
-    }
-
-    /**
-     * Masque une clé API pour les logs (n'affiche que les 4 derniers caractères).
-     */
-    private function maskApiKey(string $apiKey): string
-    {
-        return '...' . substr($apiKey, -4);
     }
 
     /**

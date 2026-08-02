@@ -36,9 +36,9 @@ return [
     ],
 
     'gemini' => [
-        'key' => env('GEMINI_API_KEY'),
-        'voice' => env('GEMINI_AUDIO_VOICE', 'Kora'),
-        'url' => 'https://generativelanguage.googleapis.com/v1beta/models/',
+        'keys' => array_filter(array_map('trim', explode(',', env('GEMINI_API_KEYS', '')))),
+        'voice' => env('GEMINI_VOICE', 'Kore'),
+        'url' => env('GEMINI_URL'),
     ],
 
 ];
