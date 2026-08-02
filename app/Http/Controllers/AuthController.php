@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Services\MailService;
 use Illuminate\Support\Facades\Auth;
+use App\Models\SocialAccount;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -20,6 +22,85 @@ class AuthController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
+
+    /**
+     * Gère la connexion via les réseaux sociaux (Google / Facebook)
+     */
+    public function socialLogin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'provider' => 'required|string|in:google,facebook',
+            'token'    => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Erreurs de validation', 'errors' => $validator->errors()], 422);
+        }
+
+        $provider = $request->provider;
+        $token = $request->token;
+
+        try {
+            // Récupère les infos de l'utilisateur auprès du fournisseur via le token fourni par le frontend
+            $socialUser = Socialite::driver($provider)->userFromToken($token);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Token social invalide ou expiré.'], 401);
+        }
+
+        // 1. Recherche du compte social existant
+        $socialAccount = SocialAccount::where('provider', $provider)
+            ->where('provider_id', $socialUser->getId())
+            ->first();
+
+        if ($socialAccount) {
+            $user = $socialAccount->user;
+        } else {
+            // 2. Recherche si un utilisateur possède déjà cet email
+            $user = User::where('email', $socialUser->getEmail())->first();
+
+            if (!$user) {
+                // 3. Création du nouvel utilisateur si inconnu
+                $user = User::create([
+                    'code'              => $this->generateUniqueUserCode(),
+                    'name'              => $socialUser->getName() ?? $socialUser->getNickname() ?? 'Utilisateur',
+                    'email'             => $socialUser->getEmail(),
+                    'password'          => Hash::make(Str::random(24)), // Mot de passe aléatoire
+                    'email_verified_at' => now(),
+                    'profil'            => $socialUser->getAvatar() ?? '/storage/profil/profil.png',
+                    'type_id'           => 1, // Apprenti par défaut
+                ]);
+            }
+
+            // Liaison du compte social
+            $user->socialAccounts()->create([
+                'provider'    => $provider,
+                'provider_id' => $socialUser->getId(),
+                'avatar'      => $socialUser->getAvatar(),
+            ]);
+        }
+
+        // Connexion de l'utilisateur
+        Auth::login($user);
+
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        return response()->json([
+            'message' => 'Connexion réussie via ' . ucfirst($provider) . '.',
+            'user' => [
+                'id'      => $user->id,
+                'name'    => $user->name,
+                'email'   => $user->email,
+                'type_id' => $user->type_id,
+                'profil'  => $user->profil,
+            ]
+        ], 200);
+    }
+
+    /*
+        Connexion classique avec email et mot de passe.
+    */
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
