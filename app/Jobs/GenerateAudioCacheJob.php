@@ -21,6 +21,11 @@ class GenerateAudioCacheJob implements ShouldQueue
     protected $tone;
     protected $attemptTraceId;
 
+    // Valeurs par défaut, centralisées ici pour que resolveAudioPath() (utilisé aussi
+    // par AudioManageService pour le nettoyage) calcule toujours le même chemin que handle().
+    public const DEFAULT_THEME = 'Philosophie générale';
+    public const DEFAULT_TONE = 'Empathique et naturel';
+
     /**
      * Nombre de tentatives réelles autorisées avant échec définitif.
      * Nécessaire pour que la rotation de clés ait un sens : sans un tries > 1,
@@ -31,7 +36,7 @@ class GenerateAudioCacheJob implements ShouldQueue
     /**
      * Crée une nouvelle instance de Job enrichie avec le contexte.
      */
-    public function __construct(string $text, string $theme = 'Philosophie générale', string $tone = 'Empathique et naturel')
+    public function __construct(string $text, string $theme = self::DEFAULT_THEME, string $tone = self::DEFAULT_TONE)
     {
         $this->text = $text;
         $this->theme = $theme;
@@ -43,14 +48,26 @@ class GenerateAudioCacheJob implements ShouldQueue
     }
 
     /**
+     * Calcule le chemin du fichier audio en cache pour un texte/thème/ton donnés.
+     * Point d'entrée UNIQUE pour ce calcul — utilisé ici et par AudioManageService::
+     * safeDeleteAudio(), pour que génération et nettoyage ne puissent plus jamais
+     * calculer deux chemins différents pour le même contenu.
+     */
+    public static function resolveAudioPath(string $text, ?string $theme = null, ?string $tone = null): string
+    {
+        $theme ??= self::DEFAULT_THEME;
+        $tone ??= self::DEFAULT_TONE;
+
+        return 'audio/' . md5($text . $theme . $tone) . '.wav';
+    }
+
+    /**
      * Exécute le job.
      */
     public function handle(): void
     {
         // Étape 1 : Le Hash prédictif intègre le style pour correspondre au contrôleur
-        // NB : extension .wav — Gemini TTS renvoie du PCM brut, pas un .mp3 (voir plus bas)
-        $fileName = md5($this->text . $this->theme . $this->tone) . '.wav';
-        $filePath = 'audio/' . $fileName;
+        $filePath = self::resolveAudioPath($this->text, $this->theme, $this->tone);
 
         // Si le fichier audio exact existe déjà, on stoppe pour économiser le quota
         if (Storage::disk('public')->exists($filePath)) {
