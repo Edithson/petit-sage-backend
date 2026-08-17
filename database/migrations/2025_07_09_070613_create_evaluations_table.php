@@ -24,7 +24,7 @@ return new class extends Migration
             $table->integer('score');
             $table->time('temps');
             $table->json('question'); //contient les questions ratés
-            $table->string('drawing_data'); //dessin
+            $table->string('drawing_data')->nullable(); //dessin
             $table->integer('max_score')->nullable()->default(10);
             $table->timestamps();
         });
