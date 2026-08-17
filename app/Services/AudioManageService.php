@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Question;
 use App\Models\Partie;
+use App\Jobs\GenerateAudioCacheJob;
 use Illuminate\Support\Facades\Storage;
 
 class AudioManageService
@@ -36,7 +37,9 @@ class AudioManageService
 
         // 3. S'il n'est utilisé nulle part, on supprime physiquement
         if (!$isUsedInParties && !$isUsedInQuestions) {
-            $filePath = 'audio/' . md5($text) . '.mp3';
+            // Même formule que GenerateAudioCacheJob::handle() — sinon on calcule un
+            // chemin qui ne correspondra jamais au vrai fichier en cache (c'était le bug).
+            $filePath = GenerateAudioCacheJob::resolveAudioPath($text);
             if (Storage::disk('public')->exists($filePath)) {
                 Storage::disk('public')->delete($filePath);
             }

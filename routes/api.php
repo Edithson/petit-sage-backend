@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 // use App\Http\Controllers\TTSController;
+// use App\Http\Controllers\ElevenLabsController;
+use App\Http\Controllers\GoogleAudioController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TypeController;
 use App\Http\Controllers\UserController;
@@ -11,7 +13,6 @@ use App\Http\Controllers\PartieController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\BadgeUsersController;
-use App\Http\Controllers\ElevenLabsController;
 use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\NiveauController;
@@ -28,7 +29,7 @@ Route::put('/questions/reorder', [QuestionController::class, 'reorder']);
 
 //synthèse vocale
 // Route::post('/tts', [TTSController::class, 'generate']);
-Route::post('/synthesize-speech', [ElevenLabsController::class, 'synthesize']);
+Route::post('/synthesize-speech', [GoogleAudioController::class, 'synthesize']);
 
 Route::put('/parties/reorder', [PartieController::class, 'reorder']);
 
@@ -38,6 +39,7 @@ Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/social-login', [AuthController::class, 'socialLogin']);
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

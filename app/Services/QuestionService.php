@@ -192,8 +192,16 @@ class QuestionService
             'reponses' => json_encode($processedOptions),
         ]);
 
-        // Nettoyage des anciens audios devenus obsolètes
-        foreach ($oldTexts as $oldText) {
+        // Ne nettoyer que les textes qui ont réellement disparu : un texte encore
+        // présent après la mise à jour (option inchangée, par exemple) ne doit jamais
+        // être envoyé à safeDeleteAudio(), sous peine de le voir supprimé puis
+        // régénéré pour rien (safeDeleteAudio exclut la question courante de sa
+        // vérification "encore utilisé ailleurs", donc un texte toujours utilisé
+        // par CETTE question, mais par aucune autre, semblerait à tort orphelin).
+        $newTexts = $this->audioManageService->extractFromQuestion($question);
+        $removedTexts = array_diff($oldTexts, $newTexts);
+
+        foreach ($removedTexts as $oldText) {
             $this->audioManageService->safeDeleteAudio($oldText, 'question', $question->id);
         }
 

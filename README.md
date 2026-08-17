@@ -11,43 +11,48 @@ Le backend est développé sous le framework **Laravel 12** avec **PHP 8.2+**.
 *   **Framework Principal :** Laravel `^12.0`
 *   **Version PHP :** `^8.2`
 *   **Gestionnaire de Base de Données :** MySQL / SQLite
-*   **Authentification :** Laravel Sanctum `^4.0` (sessions SPA d'état / Cookies)
+*   **Authentification :** Laravel Sanctum `^4.0` (sessions SPA d'état / Cookies / Tokens)
+*   **Système d'Audit Log :** Spatie Laravel Activitylog `^5.0`
 *   **Services tiers intégrés :**
     *   **ElevenLabs API :** Synthèse vocale (TTS) avec mise en cache locale des fichiers audio (`ElevenLabsController`).
     *   **Sentry :** Suivi et monitoring des erreurs en temps réel (`sentry-laravel` `^4.22`).
-*   **Dépendances non-utilisées / Stubs :**
-    *   `google/cloud-text-to-speech` (installé mais non-utilisé dans les controleurs actifs).
-    *   `openai-php/client` (installé pour de futures intégrations mais non-utilisé).
 
 ---
 
 ## 📂 Architecture Générale du Projet
 
-Le projet suit l'architecture standard MVC (Modèle-Vue-Contrôleur) de Laravel, avec quelques adaptations pour un fonctionnement en mode API REST :
+Le projet suit une architecture MVC découplée et optimisée pour une API REST :
 
 ```text
 app/
 ├── Http/
-│   ├── Controllers/       # Traitement des requêtes HTTP & Réponses API
-│   │   ├── AuthController.php        # Authentification utilisateur (Sanctum), Email Verification
-│   │   ├── DashboardController.php   # KPI et agrégations statistiques admin
+│   ├── Controllers/       # Contrôleurs HTTP standards (allégés de la logique métier)
+│   │   ├── AuthController.php        # Authentification utilisateur (Sanctum)
+│   │   ├── ActivityLogController.php # API d'administration et consultation des logs d'activité
+│   │   ├── DashboardController.php   # KPI et statistiques d'administration
 │   │   ├── ElevenLabsController.php  # Synthèse vocale de textes via ElevenLabs
-│   │   ├── EvaluationController.php  # Enregistrement des sessions de jeu, scores & dessins
+│   │   ├── EvaluationController.php  # Sessions de jeu, scores & dessins
+│   │   ├── ResponseHelper.php        # Centralisation des retours JSON formatés
 │   │   └── ...
-│   └── Middleware/        # Middlewares (EnsureFrontendRequestsAreStateful prépendu pour Sanctum)
-├── Models/                # Entités de base de données et relations Eloquent
+│   ├── Middleware/        # Middlewares globaux (CORS, Sanctum, etc.)
+│   └── Requests/          # Validation de formulaires découplée (Form Requests)
+│       ├── LoginRequest.php
+│       ├── RegisterRequest.php
+│       └── ...
+├── Models/                # Modèles Eloquent & relations
 │   ├── User.php           # Compte principal (Admin, Parent, Apprenti)
 │   ├── Profil.php         # Sous-compte joueur/enfant rattaché à un utilisateur
 │   ├── Niveau.php         # Niveaux scolaires/d'âge (ex: 3-7 ans, 8-12 ans, etc.)
-│   ├── Thematique.php     # Thématiques de jeu (réflexive : Thème Principal et Sous-thèmes)
+│   ├── Thematique.php     # Thématiques de jeu (structure réflexive)
 │   ├── Partie.php         # Chapitre/Séquence au sein d'une thématique
 │   ├── Question.php       # Question avec choix multiples/uniques en format JSON
 │   ├── Evaluation.php     # Session d'évaluation réalisée (Score, dessin, temps, erreurs)
-│   ├── Badge.php          # Badge déblocable selon un score minimum dans une thématique
-│   └── badge_users.php    # Modèle Pivot d'attribution des badges aux utilisateurs/profils
+│   ├── Badge.php          # Badge déblocable selon un score minimum
+│   ├── Setting.php        # Paramètres généraux de la plateforme (singleton)
+│   └── BadgeUser.php      # Modèle Pivot personnalisé d'attribution des badges
 ├── Services/              # Services métiers découplés
 │   ├── AudioManageService.php # Gestion physique et suppression sécurisée des fichiers vocaux
-│   └── MailService.php        # Service d'envoi d'emails asynchrones (via Queue)
+│   ├── MailService.php        # Service d'envoi d'emails asynchrones (via Queue)
 ```
 
 ---
@@ -70,25 +75,33 @@ erDiagram
     THEMATIQUES ||--o{ BADGES : "possede"
     PARTIES ||--o{ QUESTIONS : "contient"
     PARTIES ||--o{ EVALUATIONS : "concerne"
-    USERS }o--o{ BADGES : "debloque (badge_users)"
-    PROFILS }o--o{ BADGES : "debloque (badge_users)"
+    USERS }o--o{ BADGES : "debloque (BadgeUser)"
+    PROFILS }o--o{ BADGES : "debloque (BadgeUser)"
 ```
 
-### Description des Modèles Principaux :
-*   **User (Utilisateur) :** Compte parent/administrateur. Rattaché à un type (Apprenti, Parent, Admin).
-*   **Profil (Profil Joueur) :** Sous-compte pour enfant, permettant à plusieurs joueurs de progresser de manière isolée sur un même appareil.
-*   **Niveau :** Tranches d'âges associées aux thématiques de jeu (ex : Niveau 1 pour 3 à 7 ans).
-*   **Thematique :** Sujets généraux divisés en sous-thématiques (ex : Solidarité, Respect).
-*   **Partie :** Série ordonnée de questions associée à un sous-thème.
-*   **Question :** Structure flexible contenant l'énoncé (texte, URL média) et un champ JSON `reponses` contenant les choix avec leur statut d'exactitude.
-*   **Evaluation :** Historique des sessions de quiz. Contient le score final, le temps passé, les données de canvas de dessin sauvegardées sous format PNG/JPG, et la liste des questions échouées.
-*   **Badge :** Récompense débloquée pour un profil ou utilisateur lorsque son score cumulatif sur une thématique atteint le seuil requis (`nbr_min_point`).
+---
+
+## 👁️ Système de Journalisation d'Activité (Audit Log)
+
+L'application intègre un **"œil de dieu"** robuste basé sur `spatie/laravel-activitylog` :
+*   **Modèles suivis :** Les créations, modifications et suppressions sur `User`, `Question`, `Badge`, `Evaluation`, `Partie`, `Setting` et `Profil` sont enregistrées automatiquement en détectant les champs modifiés (`logOnlyDirty()`).
+*   **Authentification :** Les événements de connexion réussie (`login`), de déconnexion (`logout`) et d'échecs de connexion (`login_failed`) sont tracés avec l'adresse IP et le User-Agent de la requête.
+*   **Conservation :** Les logs d'activités obsolètes sont purgés automatiquement après **90 jours** (`clean_after_days => 90`).
+*   **Récupération API (Frontend) :**
+    *   `GET /api/admin/activity-logs` : Réservé aux administrateurs. Permet de filtrer par utilisateur, modèle, IP, action, et plage de dates.
+    *   `GET /api/activity-logs/me` : Accessible par l'utilisateur connecté pour consulter son propre historique d'activité (filtrable par profil enfant ou action).
+
+---
+
+## 🌐 Traduction et Gestion des Erreurs
+
+*   **Langue par défaut :** Le français (`fr`) est configuré par défaut dans le fichier `.env` (`APP_LOCALE=fr`).
+*   **Traductions de formulaires :** Le dossier `lang/fr/validation.php` contient les traductions exhaustives et personnalisées de l'ensemble des règles de validation et des attributs de formulaires (ex : `sexe` traduit par `genre`, `name` par `nom`, etc.).
+*   **Format d'erreur épuré :** Les contrôleurs utilisent `$validator->errors()->first()` au lieu du MessageBag brut pour renvoyer des phrases d'erreurs claires et localisées au frontend au lieu de structures JSON techniques.
 
 ---
 
 ## ⚡ Installation et Lancement Local
-
-Suivez ces étapes pour installer et exécuter l'environnement de développement :
 
 ### 1. Prérequis
 *   PHP `>= 8.2`
@@ -108,14 +121,13 @@ Copiez le fichier d'exemple et générez la clé de sécurité de l'application 
 cp .env.example .env
 php artisan key:generate
 ```
-Éditez ensuite le fichier `.env` pour y renseigner vos identifiants de base de données et vos clés d'API (ElevenLabs, Sentry, SMTP Mail).
+Éditez le fichier `.env` pour y renseigner vos identifiants de base de données et vos clés d'API (ElevenLabs, Sentry, SMTP Mail).
 
 ### 4. Migrer et initialiser la base de données
 Vous pouvez exécuter les migrations et injecter les données de démonstration via :
 ```bash
 php artisan migrate --seed
 ```
-*Note : Un fichier dump SQL complet est également disponible à la racine sous le nom `ludophylosophie.sql` pour un import direct si nécessaire.*
 
 ### 5. Configurer le stockage local
 Pour rendre les images de dessins et les fichiers audio synthétisés accessibles par le front-end, créez le lien symbolique du dossier public :
@@ -124,27 +136,33 @@ php artisan storage:link
 ```
 
 ### 6. Lancer le serveur de développement
-Vous pouvez utiliser la commande Composer personnalisée définie dans `composer.json` pour lancer simultanément le serveur de développement, l'écouteur de file d'attente (pour l'envoi d'emails) et le bundle de ressources :
+Lancer simultanément le serveur local, le worker de file d'attente (pour l'envoi d'emails) et le bundle de ressources :
 ```bash
 composer dev
 ```
-*Cette commande exécute sous le capot `php artisan serve`, `php artisan queue:listen --tries=1` et `npm run dev`.*
+*Cette commande personnalisée exécute sous le capot `php artisan serve`, `php artisan queue:listen --tries=1` et `npm run dev`.*
 
 ---
 
-## ⚠️ Anomalies & Points d'Attention Identifiés
+## 🧪 Tests Automatisés
 
-Pendant l'analyse de la codebase, plusieurs dysfonctionnements et opportunités d'amélioration ont été détectés :
+L'application comprend une suite complète de tests de fonctionnalités (Feature Tests) couvrant :
+*   L'authentification et l'inscription à double facteur (2FA par code mail).
+*   La journalisation automatique d'audit (CRUD modèles et événements d'authentification).
+*   Les restrictions de sécurité de l'API.
 
-1.  **`TTSController` manquant (Erreur Critique Route) :**
-    Le fichier `routes/api.php` importe et appelle `TTSController` à la ligne 29 (`Route::post('/tts', [TTSController::class, 'generate']);`). Cependant, aucun fichier `TTSController.php` n'existe dans `app/Http/Controllers/`. Appeler cette route provoquera une erreur fatale. Si vous utilisez uniquement ElevenLabs, cette route doit être retirée ou le contrôleur doit être créé pour supporter Google TTS.
-2.  **Bug de validation dans `ContactController@store` :**
-    À la ligne 41 de `ContactController.php`, le code vérifie la validation via `if ($request->fails())`. Cependant, `$request` est une instance de `Request` de Laravel et ne possède pas la méthode `fails()`. Cela génère une exception `BadMethodCallException` lors de l'enregistrement réussi de formulaires de contact. La validation native de Laravel lègue déjà cette gestion via des exceptions automatisées, ce bloc `if` doit donc être supprimé ou corrigé avec un validateur séparé.
-3.  **Bouchon de débogage dans `EvaluationController@getEvalUser` :**
-    La méthode `getEvalUser()` à la ligne 243 de `EvaluationController.php` commence directement par `return true;`, empêchant toute sélection et renvoi de données réelles d'évaluation d'un compte ou d'un profil. Le code de récupération SQL est ainsi désactivé.
-4.  **Nom de classe non-standard `badge_users` :**
-    La classe de modèle associée à la table pivot s'appelle `badge_users.php` et utilise un nom de classe en minuscules et snake_case. Il est recommandé de la renommer en `BadgeUser` (PascalCase) selon les conventions PSR-12 et standards de Laravel.
-5.  **Importation manquante dans `badge_users.php` :**
-    À la ligne 28 de `app/Models/badge_users.php`, le type de retour de la relation `profil()` est défini sur `: BelongsTo`, mais l'import de la classe `use Illuminate\Database\Eloquent\Relations\BelongsTo;` est absent en haut du fichier, ce qui lèvera une erreur d'interprétation lors de son appel.
-6.  **Dépendances inactives :**
-    Les librairies `openai-php/client` et `google/cloud-text-to-speech` sont installées via `composer.json` mais ne sont importées nulle part dans la logique active de l'application.
+Pour exécuter les tests :
+```bash
+php artisan test
+```
+
+---
+
+## 🛠️ Optimisations et Refactorisations Réalisées
+
+1.  **Allègement des Contrôleurs :** Déplacement de la logique de validation dans `app/Http/Requests` et de la logique métier dans des classes services (ex : `AudioManageService`, `MailService`).
+2.  **Harmonisation des Réponses :** Intégration de la classe `ResponseHelper` (anciennement `PackageController`) pour formater de façon homogène toutes les réponses JSON de l'API.
+3.  **Performances SQL (Eager Loading) :** Remplacement systématique de `.get()` par `.paginate(15)` sur les listings d'administration majeurs, et implémentation de l'eager-loading natif (`with()`) pour éradiquer les requêtes N+1 (ex : `UserController@show`).
+4.  **Élimination des Double Sauvegardes :** Suppression des appels redondants à `$user->save()` présents dans le cycle de vie de création des utilisateurs.
+5.  **Standardisation du modèle pivot `BadgeUser` :** Renommé depuis `badge_users` en `BadgeUser` (PascalCase), configuré pour hériter de `Pivot` et associé explicitement aux relations Many-to-Many via `->using()`.
+6.  **Sécurisation Session tests :** Ajout de vérifications `hasSession()` dans `AuthController` pour permettre l'exécution fluide des tests d'API sans état de session.

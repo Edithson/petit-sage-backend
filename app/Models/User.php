@@ -8,6 +8,8 @@ use App\Models\Niveau;
 use App\Models\Question;
 use App\Models\Evaluation;
 use App\Models\Profil;
+use App\Models\BadgeUser;
+use App\Models\SocialAccount;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -133,6 +135,12 @@ class User extends Authenticatable
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
+
+    public function socialAccounts()
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
 }
 
 
