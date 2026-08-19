@@ -86,9 +86,12 @@ class AuthController extends Controller
             $request->session()->regenerate();
         }
 
+        $token = $user->createToken('auth-token')->plainTextToken;
+
         return response()->json([
             'message' => 'Connexion réussie via ' . ucfirst($provider) . '.',
-            'user' => [
+            'token'   => $token,
+            'user'    => [
                 'id'      => $user->id,
                 'name'    => $user->name,
                 'email'   => $user->email,
@@ -121,10 +124,12 @@ class AuthController extends Controller
             }
 
             $user = Auth::user();
+            $token = $user->createToken('auth-token')->plainTextToken;
 
             return response()->json([
                 'message' => 'Connexion réussie.',
-                'user' => [
+                'token'   => $token,
+                'user'    => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -224,9 +229,12 @@ class AuthController extends Controller
             'type_id' => 1, // Par défaut, un nouvel utilisateur est un apprenti (type_id = 1)
         ]);
 
+        $token = $user->createToken('auth-token')->plainTextToken;
+
         return response()->json([
             'message' => 'Inscription réussie.',
-            'user' => [
+            'token'   => $token,
+            'user'    => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -318,6 +326,10 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        if ($request->user() && method_exists($request->user(), 'currentAccessToken') && $request->user()->currentAccessToken()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
         Auth::guard('web')->logout();
         if ($request->hasSession()) {
             $request->session()->invalidate();
