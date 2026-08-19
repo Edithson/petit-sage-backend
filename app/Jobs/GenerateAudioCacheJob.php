@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
 
-class GenerateAudioCacheJob implements ShouldQueue
+class GenerateAudioCacheJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -32,6 +33,24 @@ class GenerateAudioCacheJob implements ShouldQueue
      * il n'y a jamais de seconde tentative pour essayer une autre clé.
      */
     public $tries = 3;
+
+    /**
+     * Durée (secondes) du verrou d'unicité — doit couvrir le temps réel d'un appel
+     * Gemini + retries, pas plus, pour ne jamais bloquer une régénération légitime
+     * plus tard si un job précédent a échoué sans libérer proprement son verrou.
+     */
+    public $uniqueFor = 120;
+
+    /**
+     * Identifiant d'unicité : deux dispatch() pour le même texte/thème/ton en même
+     * temps ne produisent qu'un seul appel Gemini réel — le second est silencieusement
+     * ignoré tant que le premier est en file ou en cours de traitement. Utilise
+     * resolveAudioPath() pour rester cohérent avec le reste du système.
+     */
+    public function uniqueId(): string
+    {
+        return self::resolveAudioPath($this->text, $this->theme, $this->tone);
+    }
 
     /**
      * Crée une nouvelle instance de Job enrichie avec le contexte.

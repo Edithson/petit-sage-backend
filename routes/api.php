@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 // use App\Http\Controllers\TTSController;
 // use App\Http\Controllers\ElevenLabsController;
+use App\Http\Controllers\AudioController;
 use App\Http\Controllers\GoogleAudioController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TypeController;
@@ -30,6 +31,9 @@ Route::put('/questions/reorder', [QuestionController::class, 'reorder']);
 //synthèse vocale
 // Route::post('/tts', [TTSController::class, 'generate']);
 Route::post('/synthesize-speech', [GoogleAudioController::class, 'synthesize']);
+
+// route pour la génération d'audio directement demandé par le frontend
+Route::post('/audio/precache', [AudioController::class, 'precache']);
 
 Route::put('/parties/reorder', [PartieController::class, 'reorder']);
 
