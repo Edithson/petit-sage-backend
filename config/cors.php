@@ -24,9 +24,13 @@ return [
         'http://localhost:3000',
         'http://localhost:8081',
         'http://localhost:19006',
+        'https://localhost',       // <-- OBLIGATOIRE POUR ANDROID CAPACITOR
+        'http://localhost',        // <-- POUR HTTP LOCALHOST
+        'capacitor://localhost',   // <-- OBLIGATOIRE POUR IOS CAPACITOR
     ]),
 
     'allowed_origins_patterns' => [
+        '#^https://localhost$#',
         '#^http://localhost:\d+$#',
         '#^http://127\.0\.0\.1:\d+$#',
         '#^http://192\.168\.\d+\.\d+(:\d+)?$#',
