@@ -104,7 +104,7 @@ class UserController extends Controller
                 'age' => 'nullable|integer|min:0|max:150',
                 'telephone' => 'nullable|string|max:20',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
-                'type_id' => 'required|integer|in:1,2,3', // 1:Apprenti, 2:Admin, 3:SuperAdmin (ajuster selon vos rôles)
+                'type_id' => 'required|integer|in:1,2,3,4', // 1:Apprenti, 2:Admin, 3:SuperAdmin (ajuster selon vos rôles)
                 'profil' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
