@@ -80,7 +80,7 @@ class ProfilController extends Controller
             }
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
-                'sexe' => 'nullable|string|in:Masculin,Féminin,Autre',
+                'sexe' => 'nullable|integer',
                 'age' => 'nullable|integer|min:0|max:150',
                 'niveau_id' => 'nullable|integer|exists:niveaux,id',
                 'profil' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',

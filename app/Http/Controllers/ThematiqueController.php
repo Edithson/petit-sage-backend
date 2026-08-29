@@ -3,15 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\ResponseHelper;
-use App\Http\Requests\StoreThematiqueRequest;
-use App\Http\Requests\UpdateThematiqueRequest;
 use App\Models\Badge;
 use App\Models\Niveau;
 use App\Models\Partie;
 use App\Models\Question;
 use App\Models\Thematique;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -138,6 +135,9 @@ class ThematiqueController extends Controller
                 'nbr_min_point' => 'nullable|integer|min:0',
                 'couleur' => 'nullable|string|max:10',
                 'emoji' => 'nullable|string|max:10',
+                'methode' => 'nullable|string|max:180',
+                'technique' => 'nullable|string|max:180',
+                'origin' => 'nullable|string|max:180',
             ]);
 
             if ($validator->fails()) {
@@ -145,7 +145,7 @@ class ThematiqueController extends Controller
                 return ResponseHelper::errorResponse('Erreurs de validation : ' . $validator->errors()->first(), 422);
             }
 
-            $data = $request->only(['name', 'description', 'parent_id', 'media_type', 'media_description', 'niveau_id', 'nbr_min_point', 'couleur', 'emoji']);
+            $data = $request->only(['name', 'description', 'parent_id', 'media_type', 'media_description', 'niveau_id', 'nbr_min_point', 'couleur', 'emoji', 'methode', 'technique', 'origin']);
             $data['media_url'] = null; // Initialiser à null
 
             // Gérer l'upload de média
@@ -265,6 +265,9 @@ class ThematiqueController extends Controller
                 'nbr_min_point' => 'nullable|integer|min:0',
                 'couleur' => 'nullable|string|max:10',
                 'emoji' => 'nullable|string|max:10',
+                'methode' => 'nullable|string|max:180',
+                'technique' => 'nullable|string|max:180',
+                'origin' => 'nullable|string|max:180',
             ]);
             
             if ($validator->fails()) {
